@@ -1,0 +1,58 @@
+---
+title: Wrapper Provide Liquidity Classic
+description: Low-level instruction to provide liquidity using both base assets and PT tokens
+---
+
+# createWrapperProvideLiquidityClassicInstruction
+
+Provides liquidity to a CLMM market using both base assets and PT tokens. This instruction mints SY from the supplied base asset and combines it with user-supplied PT tokens to deposit liquidity into the specified tick range. This is useful when the caller already holds PT and wants to pair it with freshly minted SY.
+
+## Usage
+
+```typescript
+import { createWrapperProvideLiquidityClassicInstruction } from "@exponent-labs/exponent-clmm-client";
+import { PublicKey, SystemProgram } from "@solana/web3.js";
+
+const ix = createWrapperProvideLiquidityClassicInstruction({
+  depositor: depositorKeypair.publicKey,
+  market: new PublicKey("market..."),
+  ticks: new PublicKey("ticks..."),
+  tokenPtEscrow: new PublicKey("tokenPtEscrow..."),
+  tokenSyEscrow: new PublicKey("tokenSyEscrow..."),
+  tokenSyDepositor: new PublicKey("tokenSyDepositor..."),
+  tokenPtDepositor: new PublicKey("tokenPtDepositor..."),
+  tokenProgram: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
+  marketAddressLookupTable: new PublicKey("lookupTable..."),
+  syProgram: new PublicKey("syProgram..."),
+  lpPosition: new PublicKey("lpPosition..."),
+  systemProgram: SystemProgram.programId,
+  rent: new PublicKey("SysvarRent111111111111111111111111111111111"),
+  eventAuthority: new PublicKey("eventAuthority..."),
+  program: new PublicKey("program..."),
+  lowerTick: 0,
+  upperTick: 100,
+  amountBase: 1_000_000n,
+  amountPt: 500_000n,
+  minLpOut: 900_000n,
+  mintSyAccountsUntil: 3,
+});
+```
+
+## Accounts
+
+This instruction uses the [Liquidity Accounts](/clmm/raw-instructions/common-accounts#liquidity-accounts).
+
+## Args
+
+| Name | Type | Description |
+|------|------|-------------|
+| lowerTick | `u32` | The lower tick boundary for the liquidity position |
+| upperTick | `u32` | The upper tick boundary for the liquidity position |
+| amountBase | `u64` | The amount of base asset to provide |
+| amountPt | `u64` | The amount of PT tokens to provide |
+| minLpOut | `u64` | The minimum amount of LP tokens to receive |
+| mintSyAccountsUntil | `u8` | The number of CPI remaining accounts used for SY minting |
+
+## Returns
+
+`TransactionInstruction` — a Solana transaction instruction ready to be added to a transaction.

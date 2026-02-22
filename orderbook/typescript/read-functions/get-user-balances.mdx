@@ -1,0 +1,41 @@
+---
+title: Get User Balances
+description: Get a user's escrow balances locked in the orderbook
+---
+
+The `getUserBalances` function retrieves the balances of PT, YT, SY, staked YT, and staged funds that a user has locked in the orderbook escrow for active orders.
+
+## Usage
+
+```typescript
+import { PublicKey } from "@solana/web3.js";
+
+const balances = orderbook.getUserBalances(
+  // The user's wallet public key
+  wallet.publicKey
+);
+
+console.log("PT balance:", balances.pt);
+console.log("YT balance:", balances.yt);
+console.log("SY balance:", balances.sy);
+console.log("Staked YT balance:", balances.stakedYt);
+console.log("Staged balance:", balances.staged);
+```
+
+## Parameters
+
+| Parameter | Type        | Required | Description                  |
+| --------- | ----------- | -------- | ---------------------------- |
+| `user`    | `PublicKey` | Yes      | The user's wallet public key |
+
+## Returns
+
+Returns an object with the following balance fields (all as strings):
+
+- `pt` - Principal Token amount held in escrow
+- `yt` - Yield Token amount held in escrow
+- `sy` - Standardized Yield token amount held in escrow
+- `stakedYt` - Staked Yield Token amount
+- `staged` - Staged funds available for collection
+
+All balance values are returned as string representations of the token amounts in their smallest denomination (lamports). If the user has no escrow account, all balances will be "0".

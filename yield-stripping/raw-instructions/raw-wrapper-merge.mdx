@@ -1,0 +1,72 @@
+---
+title: Wrapper Merge
+description: Low-level instruction to merge PT + YT and unwrap to base asset atomically
+---
+
+# createWrapperMergeInstruction
+
+Builds a raw instruction that merges PT + YT back into SY and unwraps to the base asset in a single atomic operation. This combines the merging and SY redemption steps.
+
+## Usage
+
+```typescript
+import { createWrapperMergeInstruction } from "@exponent-labs/exponent-core-client";
+import { PublicKey, SystemProgram } from "@solana/web3.js";
+
+const ix = createWrapperMergeInstruction(
+  {
+    merger: wallet.publicKey,
+    tokenSyMerger: userSyTokenAccount,
+    vault: vaultAddress,
+    escrowSy: vaultEscrowSy,
+    tokenYtMerger: userYtTokenAccount,
+    tokenPtMerger: userPtTokenAccount,
+    mintYt: ytMint,
+    mintPt: ptMint,
+    authority: vaultAuthority,
+    vaultAddressLookupTable: vaultLookupTable,
+    tokenProgram: TOKEN_PROGRAM_ID,
+    vaultRobotYieldPosition: vaultYieldPosition,
+    syProgram: syProgramId,
+    systemProgram: SystemProgram.programId,
+    eventAuthority: eventAuthorityPda,
+    program: EXPONENT_CORE_PROGRAM_ID,
+  },
+  {
+    amountPy: BigInt(1_000_000),
+    redeemSyAccountsUntil: 0,
+  }
+);
+```
+
+## Accounts
+
+| Name | Type | Signer | Writable | Description |
+|------|------|--------|----------|-------------|
+| `merger` | `PublicKey` | Yes | Yes | The user performing the merge |
+| `tokenSyMerger` | `PublicKey` | No | Yes | User's SY token account (intermediate) |
+| `vault` | `PublicKey` | No | Yes | Vault account |
+| `escrowSy` | `PublicKey` | No | Yes | Vault SY escrow account |
+| `tokenYtMerger` | `PublicKey` | No | Yes | User's source YT token account |
+| `tokenPtMerger` | `PublicKey` | No | Yes | User's source PT token account |
+| `mintYt` | `PublicKey` | No | Yes | YT mint address |
+| `mintPt` | `PublicKey` | No | Yes | PT mint address |
+| `authority` | `PublicKey` | No | Yes | Vault authority PDA |
+| `vaultAddressLookupTable` | `PublicKey` | No | No | Vault address lookup table |
+| `tokenProgram` | `PublicKey` | No | No | SPL Token program |
+| `vaultRobotYieldPosition` | `PublicKey` | No | Yes | Vault robot yield position |
+| `syProgram` | `PublicKey` | No | No | SY program |
+| `systemProgram` | `PublicKey` | No | No | System program |
+| `eventAuthority` | `PublicKey` | No | No | Event authority PDA |
+| `program` | `PublicKey` | No | No | Exponent Core program |
+
+## Args
+
+| Name | Type | Description |
+|------|------|-------------|
+| `amountPy` | `bigint` | Amount of PT + YT to merge (in base units) |
+| `redeemSyAccountsUntil` | `number` | Index into remaining accounts for SY redemption CPI accounts |
+
+## Returns
+
+`TransactionInstruction` — a Solana transaction instruction ready to be added to a transaction.

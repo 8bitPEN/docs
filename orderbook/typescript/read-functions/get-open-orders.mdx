@@ -1,0 +1,44 @@
+---
+title: Get Open Orders
+description: Get all open orders for a trader
+---
+
+The `getUserOpenOrders` function retrieves all open orders for a specific trader on the Exponent orderbook.
+
+## Usage
+
+```typescript
+import { PublicKey } from "@solana/web3.js";
+
+const openOrders = orderbook.getUserOpenOrders(
+  // The trader's wallet public key
+  wallet.publicKey
+);
+
+for (const order of openOrders) {
+  console.log("Type:", order.type);
+  console.log("Price APY:", order.priceApy);
+  console.log("Amount:", order.amount);
+  console.log("Expires at:", order.expiryAt);
+  console.log("Order index:", order.offerIndex);
+}
+```
+
+## Parameters
+
+| Parameter | Type        | Required | Description                    |
+| --------- | ----------- | -------- | ------------------------------ |
+| `user`    | `PublicKey` | Yes      | The trader's wallet public key |
+
+## Returns
+
+Returns an array of `Offer` objects with the following fields:
+
+- `type` - The offer type (BuyYT or SellYT)
+- `priceApy` - The price in APY terms
+- `amount` - The offer amount
+- `userEscrow` - The user's escrow public key
+- `expiryAt` - Unix timestamp when the offer expires
+- `createdAt` - Unix timestamp when the offer was created
+- `isVirtual` - Whether this is a virtual offer
+- `offerIndex` - The index of the offer (used for removal)

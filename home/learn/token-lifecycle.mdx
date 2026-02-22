@@ -1,0 +1,226 @@
+---
+title: "Strip, Trade, and Redeem"
+description: "One scenario from start to finish — strip tokens, trade on markets, collect yield, and redeem at maturity"
+---
+
+This page follows 1,000 USDC through every stage of the Exponent protocol: stripping into [PT](/home/learn/principal-token) and [YT](/home/learn/yield-token), trading on markets, collecting yield, and redeeming at maturity. Every code block uses the real SDK — for isolated copy-paste snippets, see the [SDK Quickstart](/yield-stripping/sdk-quickstart).
+
+## Setup
+
+```typescript
+import { Vault, YtPosition, MarketThree, LOCAL_ENV } from "@exponent-labs/exponent-sdk";
+import { Connection, PublicKey, Transaction, sendAndConfirmTransaction, Keypair } from "@solana/web3.js";
+
+const connection = new Connection("https://api.mainnet-beta.solana.com");
+const wallet = Keypair.fromSecretKey(/* ... */);
+
+const vault = await Vault.load(LOCAL_ENV, connection, new PublicKey("..."));
+const market = await MarketThree.load(LOCAL_ENV, connection, new PublicKey("..."));
+
+// Scenario starting point
+const rate = vault.currentSyExchangeRate; // 1.00
+const maturity = vault.expirationDate;    // 90 days from now
+```
+
+---
+
+## Strip
+
+Stripping converts a base asset into PT and YT in one atomic instruction. The vault wraps the base into [SY](/home/learn/standardized-yield) under the hood, then mints equal amounts of PT and YT based on the current exchange rate.
+
+At a rate of 1.00, depositing 1,000 USDC produces 1,000 PT + 1,000 YT.
+
+```typescript
+const stripIx = await vault.ixStripFromBase({
+  owner: wallet.publicKey,
+  amountBase: 1_000_000_000n, // 1,000 USDC (6 decimals)
+});
+
+const tx = new Transaction().add(stripIx);
+await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+<Tip>
+If you already hold SY tokens, use `vault.ixStrip({ syIn, depositor })` to skip the base-to-SY wrapping step.
+</Tip>
+
+**Holdings: 1,000 PT + 1,000 YT**
+
+---
+
+## Trade
+
+With both tokens in hand, you can trade on Exponent's markets to take a directional position. This walkthrough continues with both tokens held, but here are the two main options:
+
+### Sell PT on the CLMM (go long yield)
+
+Selling PT at a discount gives you leveraged yield exposure through YT at low cost. If PT trades at 0.95, the net cost for 1,000 YT is ~50 SY.
+
+```typescript
+const { ixs, setupIxs } = market.ixSellPt({
+  trader: wallet.publicKey,
+  amountPt: 1_000_000_000n,     // 1,000 PT
+  outConstraint: 940_000_000n,  // minimum 940 SY out
+});
+
+const tx = new Transaction().add(...setupIxs, ...ixs);
+await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+### Post a YT sell offer on the Orderbook (lock in fixed rate)
+
+Selling YT leaves you with only PT — a fixed-rate position that converges to its SY backing at [maturity](/home/learn/maturity).
+
+```typescript
+import { Orderbook, OfferType, offerOptions } from "@exponent-labs/exponent-sdk";
+
+const orderbook = await Orderbook.load(LOCAL_ENV, connection, new PublicKey("..."));
+
+const postOfferIx = orderbook.ixPostOffer({
+  trader: wallet.publicKey,
+  price: 0.12,
+  amount: 1_000_000_000n,
+  offerType: OfferType.SellYt,
+  offerOption: offerOptions("FillOrKill", [false]),
+  virtualOffer: false,
+  expirySeconds: 86400 * 7,
+  mintSy: vault.mintSy,
+});
+
+const tx = new Transaction().add(postOfferIx);
+await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+<Note>
+The examples above show two different strategies — you'd pick one or the other. The rest of this walkthrough continues without trading, keeping both PT and YT.
+</Note>
+
+---
+
+## Collect Yield
+
+YT does not earn yield sitting in your wallet — it's just an SPL token. To start accruing interest and emissions, you must deposit it into a `YieldTokenPosition`.
+
+### Initialize and deposit
+
+The yield position is a one-time setup per vault. Once the account exists on-chain, load it and deposit your YT to begin earning.
+
+```typescript
+// One-time: create a yield position for this vault
+const initIx = vault.ixInitializeYieldPosition({
+  owner: wallet.publicKey,
+});
+
+await sendAndConfirmTransaction(
+  connection, new Transaction().add(initIx), [wallet]
+);
+
+// Load the position and deposit YT
+const ytPosition = await YtPosition.loadByOwner(
+  LOCAL_ENV, connection, wallet.publicKey, vault
+);
+
+const depositIx = ytPosition.ixDepositYt({
+  amount: 1_000_000_000n, // 1,000 YT
+});
+
+await sendAndConfirmTransaction(
+  connection, new Transaction().add(depositIx), [wallet]
+);
+```
+
+### Yield accrues over time
+
+As the underlying protocol (e.g., Marginfi) earns interest, the [SY exchange rate](/home/learn/standardized-yield#the-exchange-rate) grows. Your deposited YT position tracks this growth.
+
+| | Value |
+|---|---|
+| Exchange rate at deposit | 1.000 |
+| Exchange rate after 30 days | ~1.008 |
+| YT deposited | 1,000 |
+| Accrued interest | ~8.1 SY |
+
+### Stage and collect
+
+Before collecting, you stage the yield — this snapshots the current exchange rate and computes what you're owed.
+
+```typescript
+// Reload to get latest state
+const ytPosition = await YtPosition.loadByOwner(
+  LOCAL_ENV, connection, wallet.publicKey, vault
+);
+
+// Check how much you can claim
+const claimable = ytPosition.getClaimableInterest(vault.currentSyExchangeRate);
+
+const stageIx = ytPosition.ixStageYield({
+  payer: wallet.publicKey,
+});
+
+const collectIx = ytPosition.ixCollectInterest({
+  signer: wallet.publicKey,
+});
+
+const tx = new Transaction().add(stageIx, collectIx);
+await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+**Holdings: 1,000 PT + 1,000 YT (deposited) + ~8.1 SY (collected)**
+
+---
+
+## Redeem at Maturity
+
+At [maturity](/home/learn/maturity), the exchange rate freezes. PT becomes redeemable for its full SY backing, and YT stops accruing. To exit, withdraw your YT from the yield position, then merge PT + YT back into the base asset.
+
+```typescript
+// Withdraw YT from yield position
+const withdrawIx = ytPosition.ixWithdrawYt({
+  amount: 1_000_000_000n, // 1,000 YT
+});
+
+// Merge PT + YT back to base asset in one instruction
+const { ixs, setupIxs } = await vault.ixMergeToBase({
+  owner: wallet.publicKey,
+  amountPy: 1_000_000_000n, // 1,000 PT+YT
+});
+
+const tx = new Transaction().add(withdrawIx, ...setupIxs, ...ixs);
+await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+<Tip>
+Use `vault.ixMerge({ pyIn, depositor })` if you want SY back instead of the base asset.
+</Tip>
+
+---
+
+## Summary
+
+| Stage | Action | SDK Method | Holdings After |
+|-------|--------|------------|----------------|
+| Start | — | — | 1,000 USDC |
+| Strip | Base → PT + YT | `vault.ixStripFromBase()` | 1,000 PT + 1,000 YT |
+| Deposit YT | Begin earning yield | `ytPosition.ixDepositYt()` | 1,000 PT + 1,000 YT (deposited) |
+| Collect | Claim accrued interest | `ytPosition.ixStageYield()` + `ixCollectInterest()` | 1,000 PT + 1,000 YT + ~8.1 SY |
+| Withdraw | Prepare to merge | `ytPosition.ixWithdrawYt()` | 1,000 PT + 1,000 YT + ~8.1 SY |
+| Merge | PT + YT → base asset | `vault.ixMergeToBase()` | ~1,008 USDC |
+
+**Result:** ~0.8% return over 90 days (~3.3% annualized), matching the underlying lending rate.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="SDK Quickstart" icon="code" href="/yield-stripping/sdk-quickstart">
+    Copy-paste code for each operation in isolation
+  </Card>
+  <Card title="Integration Guide" icon="puzzle-piece" href="/home/integration-guide">
+    Production-ready examples combining all three SDKs
+  </Card>
+  <Card title="CLMM Trading" icon="chart-mixed" href="/clmm/sdk-quickstart">
+    Buy and sell PT and YT on the concentrated liquidity AMM
+  </Card>
+  <Card title="Orderbook Trading" icon="arrow-right-arrow-left" href="/orderbook/sdk-quickstart">
+    Post limit orders at specific APY levels
+  </Card>
+</CardGroup>

@@ -1,0 +1,80 @@
+---
+title: Collect Interest
+description: Low-level instruction to collect accrued interest from a yield position
+---
+
+# createCollectInterestInstruction
+
+Builds a raw instruction to collect accrued interest (paid in SY) from a yield position.
+
+## Usage
+
+```typescript
+import { createCollectInterestInstruction, amount } from "@exponent-labs/exponent-core-client";
+import { PublicKey } from "@solana/web3.js";
+
+// Collect all accrued interest
+const ix = createCollectInterestInstruction(
+  {
+    owner: wallet.publicKey,
+    yieldPosition: userYieldPositionPda,
+    vault: vaultAddress,
+    tokenSyDst: userSyTokenAccount,
+    escrowSy: vaultEscrowSy,
+    authority: vaultAuthority,
+    tokenProgram: TOKEN_PROGRAM_ID,
+    syProgram: syProgramId,
+    treasurySyTokenAccount: treasurySyAccount,
+    addressLookupTable: vaultLookupTable,
+    eventAuthority: eventAuthorityPda,
+    program: EXPONENT_CORE_PROGRAM_ID,
+  },
+  {
+    amount: amount("All"),
+  }
+);
+
+// Collect a specific amount
+const ixPartial = createCollectInterestInstruction(
+  { /* ...same accounts... */ },
+  {
+    amount: amount("Some", [500_000n]),
+  }
+);
+```
+
+## Accounts
+
+| Name | Type | Signer | Writable | Description |
+|------|------|--------|----------|-------------|
+| `owner` | `PublicKey` | Yes | Yes | The yield position owner |
+| `yieldPosition` | `PublicKey` | No | Yes | User's yield position PDA |
+| `vault` | `PublicKey` | No | Yes | Vault account |
+| `tokenSyDst` | `PublicKey` | No | Yes | Destination SY token account |
+| `escrowSy` | `PublicKey` | No | Yes | Vault SY escrow account |
+| `authority` | `PublicKey` | No | Yes | Vault authority PDA |
+| `tokenProgram` | `PublicKey` | No | No | SPL Token program |
+| `syProgram` | `PublicKey` | No | No | SY program |
+| `treasurySyTokenAccount` | `PublicKey` | No | Yes | Treasury SY token account (fees) |
+| `addressLookupTable` | `PublicKey` | No | No | Vault address lookup table |
+| `eventAuthority` | `PublicKey` | No | No | Event authority PDA |
+| `program` | `PublicKey` | No | No | Exponent Core program |
+
+## Args
+
+| Name | Type | Description |
+|------|------|-------------|
+| `amount` | `Amount` | Amount to collect: `amount("All")` or `amount("Some", [value])` |
+
+### Amount Helper
+
+```typescript
+import { amount } from "@exponent-labs/exponent-core-client";
+
+amount("All")                // collect everything available
+amount("Some", [500_000n])   // collect a specific amount
+```
+
+## Returns
+
+`TransactionInstruction` — a Solana transaction instruction ready to be added to a transaction.

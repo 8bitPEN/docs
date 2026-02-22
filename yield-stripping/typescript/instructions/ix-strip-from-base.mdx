@@ -1,0 +1,48 @@
+---
+title: Strip
+description: Strip from base asset into PT and YT
+---
+
+The `ixStripFromBase` method on the `Vault` class creates a transaction instruction that wraps a base asset into SY and then strips it into PT and YT in a single atomic operation.
+
+## Usage
+
+```typescript
+import { Vault, LOCAL_ENV } from "@exponent-labs/exponent-sdk";
+import { Connection, PublicKey, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
+
+const connection = new Connection("https://api.mainnet-beta.solana.com");
+const vault = await Vault.load(LOCAL_ENV, connection, vaultAddress);
+
+const ix = await vault.ixStripFromBase({
+  owner: wallet.publicKey,
+  amountBase: 1_000_000_000n,
+});
+
+const tx = new Transaction().add(ix);
+const signature = await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+<Tip>
+  This is an async method because it needs to construct the SY minting accounts from the vault's flavor configuration.
+</Tip>
+
+## Required Parameters
+
+| Parameter    | Type        | Description                         |
+| ------------ | ----------- | ----------------------------------- |
+| `owner`      | `PublicKey`  | The owner's wallet public key       |
+| `amountBase` | `bigint`    | Amount of base asset to strip       |
+
+## Optional Parameters
+
+| Parameter | Type        | Description                                                    |
+| --------- | ----------- | -------------------------------------------------------------- |
+| `baseSrc` | `PublicKey`  | Source base token account. Defaults to owner's ATA             |
+| `sySrc`   | `PublicKey`  | Intermediate SY token account. Defaults to owner's ATA         |
+| `ptDst`   | `PublicKey`  | Destination PT token account. Defaults to owner's ATA          |
+| `ytDst`   | `PublicKey`  | Destination YT token account. Defaults to owner's ATA          |
+
+## Returns
+
+Returns a `Promise<TransactionInstruction>` that wraps the base asset into SY and strips it into PT and YT.

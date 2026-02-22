@@ -1,0 +1,54 @@
+---
+title: Overview
+description: A high-level technical introduction to Exponent Yield Stripping
+---
+
+The Exponent Yield Stripping protocol separates yield-bearing assets into their principal and yield components on Solana. By decomposing a single yield-bearing position into a [Principal Token (PT)](/home/learn/principal-token) and a [Yield Token (YT)](/home/learn/yield-token), the protocol enables fixed-rate and leveraged yield strategies.
+
+## How It Works
+
+When a user deposits [SY (Standardized Yield Token)](/home/learn/standardized-yield), the protocol strips it into two tokens:
+
+- **PT (Principal Token)**: Redeemable for the underlying asset at maturity at a 1:1 ratio
+- **YT (Yield Token)**: Represents the yield component. To earn yield, YT must be deposited into a yield position — simply holding YT in your wallet does not accrue interest.
+
+The number of PT and YT minted depends on the current [SY exchange rate](/home/learn/standardized-yield#the-exchange-rate) $r$:
+
+```
+Strip:   1 SY   →   r × PT  +  r × YT
+Merge:   r × PT  +  r × YT  →  1 SY
+```
+
+For example, if the SY exchange rate is 1.05, depositing 100 SY produces 105 PT and 105 YT.
+
+At maturity:
+```
+PT  →  Redeem for underlying asset (1:1)
+YT  →  Collect remaining accrued yield, then expires
+```
+
+<Warning>
+YT does not earn yield just by sitting in your wallet. You must deposit it into a `YieldTokenPosition` account so the protocol can track your balance and the exchange rate at entry. See the [SDK Quickstart](/yield-stripping/sdk-quickstart) for the full deposit → stage → collect workflow.
+</Warning>
+
+## Strategies
+
+- **Fixed rate**: Buying PT at a discount locks in a guaranteed return. See [PT: Principal Token](/home/learn/principal-token) for details.
+- **Leveraged yield**: YT provides amplified exposure to variable yield. See [YT: Yield Token](/home/learn/yield-token) for details.
+- **Pricing math**: For the formulas behind PT/YT pricing, implied APY, and fee decay, see [Pricing & Math](/home/learn/pricing-and-math).
+
+## SDK Classes
+
+The yield stripping SDK exposes two main classes:
+
+- **`Vault`** — Loads market state and provides core instructions (strip, merge, initialize positions, collect interest)
+- **`YtPosition`** — Manages a user's yield position (deposit/withdraw YT, stage yield, collect interest and emissions)
+
+## Getting Started
+
+<CardGroup cols={2}>
+  <Card title="SDK Quickstart" href="/yield-stripping/sdk-quickstart" />
+  <Card title="Core Concepts" href="/yield-stripping/concepts" />
+  <Card title="Instructions" href="/yield-stripping/typescript/instructions/overview" />
+  <Card title="Read Functions" href="/yield-stripping/typescript/read-functions/overview" />
+</CardGroup>

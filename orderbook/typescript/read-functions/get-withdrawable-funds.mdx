@@ -1,0 +1,59 @@
+---
+title: Get Withdrawable Funds
+description: Determine which escrow balances can be withdrawn and how
+---
+
+Use `getUserBalances` to check what funds are available in your orderbook escrow and understand how to access each type.
+
+## Usage
+
+```typescript
+import { PublicKey } from "@solana/web3.js";
+
+const balances = orderbook.getUserBalances(wallet.publicKey);
+
+// These can be withdrawn directly with ixWrapperWithdrawFunds
+console.log("Withdrawable PT:", balances.pt);
+console.log("Withdrawable YT:", balances.yt);
+console.log("Withdrawable SY:", balances.sy);
+
+// This requires ixWrapperCollectInterest first
+console.log("Staged interest (collect separately):", balances.staged);
+
+// This is locked in active sell orders
+console.log("Staked YT (in open orders):", balances.stakedYt);
+```
+
+## Understanding Each Balance
+
+| Field | Withdrawable? | How to Access |
+| ----- | ------------- | ------------- |
+| `pt` | Yes | `ixWrapperWithdrawFunds` with `ptAmount` |
+| `yt` | Yes | `ixWrapperWithdrawFunds` with `ytAmount` |
+| `sy` | Yes | `ixWrapperWithdrawFunds` with `syAmount` |
+| `staged` | No | Use `ixWrapperCollectInterest` to transfer to your wallet |
+| `stakedYt` | No | Remove the sell order first with `ixWrapperRemoveOffer` |
+
+<Note>
+`stakedYt` represents YT locked in active sell orders. Remove those orders first with [ixWrapperRemoveOffer](/orderbook/typescript/instructions/ix-wrapper-remove-offer) — the YT will move to `yt`, which is then withdrawable.
+</Note>
+
+<Tip>
+`staged` interest must be collected via [ixWrapperCollectInterest](/orderbook/typescript/instructions/ix-wrapper-collect-interest) — it cannot be withdrawn with `ixWrapperWithdrawFunds`. Interest is paid in SY tokens.
+</Tip>
+
+## Parameters
+
+| Parameter | Type | Description |
+| --------- | ---- | ----------- |
+| `user` | `PublicKey` | The trader's wallet public key |
+
+## Returns
+
+Returns an object with the following string fields (token amounts as strings):
+
+- `pt` — PT tokens from filled buy orders, available for withdrawal
+- `yt` — YT tokens from filled or removed orders, available for withdrawal
+- `sy` — SY tokens from filled sell orders, available for withdrawal
+- `stakedYt` — YT locked in active sell orders (not directly withdrawable)
+- `staged` — Accrued interest from YT in orders (collect separately)

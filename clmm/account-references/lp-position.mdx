@@ -1,0 +1,143 @@
+---
+title: LpPosition
+description: On-chain LpPosition account structure and fields
+---
+
+The LpPosition account represents a liquidity provider's position within a specific tick range in a CLMM market. It tracks the LP balance, fee accruals, tokens owed, and farm emissions for the position.
+
+## LpPosition
+
+```rust
+pub struct LpPosition {
+    /// Link to address that owns this position
+    pub owner: Pubkey,
+
+    /// Link to market that manages the LP
+    pub market: Pubkey,
+
+    /// Last fee calculation position snapshot for PT (Q64.64 fixed-point)
+    pub fee_inside_last_pt: u128,
+
+    /// Last fee calculation position snapshot for SY (Q64.64 fixed-point)
+    pub fee_inside_last_sy: u128,
+
+    /// Track the LP balance of the user here
+    pub lp_balance: u64,
+
+    /// Unclaimed SY tokens owed to the position owner from fees
+    pub tokens_owed_sy: u64,
+
+    /// Unclaimed PT tokens owed to the position owner from fees
+    pub tokens_owed_pt: u64,
+
+    /// Lower tick index of the position's range
+    pub lower_tick_idx: u32,
+
+    /// Upper tick index of the position's range
+    pub upper_tick_idx: u32,
+
+    /// Farm emission trackers for this position
+    pub farms: PersonalYieldTrackers,
+
+    /// Share trackers for each tick in range
+    pub share_trackers: PrincipalShareTrackers,
+}
+```
+
+## PersonalYieldTrackers
+
+Wrapper for a vector of personal yield trackers for farm emissions.
+
+```rust
+pub struct PersonalYieldTrackers {
+    /// Vector of yield trackers, one per farm emission
+    pub trackers: Vec<PersonalYieldTracker>,
+}
+```
+
+## PersonalYieldTracker
+
+Individual tracker for interest and emissions earned by deposits.
+
+```rust
+pub struct PersonalYieldTracker {
+    /// The index is the per-share value of the emission token
+    /// Note that the YT balance must be converted to the equivalent SY balance
+    pub last_seen_index: Number,
+
+    /// Accumulated tokens owed to this position
+    pub tokens_owed: u64,
+}
+```
+
+## PrincipalShareTrackers
+
+Wrapper for a vector of principal share trackers.
+
+```rust
+pub struct PrincipalShareTrackers {
+    /// Vector of principal shares, tracking LP shares across tick ranges
+    pub trackers: Vec<PrincipalShare>,
+}
+```
+
+## PrincipalShare
+
+Tracker for LP shares and emissions across a specific tick range.
+
+```rust
+pub struct PrincipalShare {
+    /// Left tick index
+    pub tick_idx: u32,
+
+    /// Right tick index
+    pub right_tick_idx: u32,
+
+    /// Epoch when this share was inserted
+    pub split_epoch: u64,
+
+    /// LP share amount
+    pub lp_share: u64,
+
+    /// Emission trackers for this share
+    pub emissions: PersonalYieldTrackers,
+}
+```
+
+## Key Concepts
+
+### Tick Range
+
+Each LP position is defined by a lower and upper tick index (`lower_tick_idx` and `upper_tick_idx`). The position only earns fees and provides liquidity when the market's current price falls within this range.
+
+### Fee Accrual Tracking
+
+The fields `fee_inside_last_pt` and `fee_inside_last_sy` use Q64.64 fixed-point arithmetic to track the cumulative fees per unit of liquidity at the last time the position was updated. This allows for precise calculation of fees owed to the position.
+
+When fees are calculated:
+1. The current fee-per-liquidity values are fetched from the market
+2. The difference between current and last-seen values is computed
+3. This difference is multiplied by the position's `lp_balance` to determine fees owed
+4. Fees are added to `tokens_owed_sy` and `tokens_owed_pt`
+
+### Tokens Owed
+
+The `tokens_owed_sy` and `tokens_owed_pt` fields accumulate fees earned by the position. These tokens can be claimed by the position owner through a withdrawal instruction. The tokens remain tracked here until explicitly claimed.
+
+### Farm Emissions
+
+The `farms` field tracks farm emission rewards that the position has earned. Each `PersonalYieldTracker` in the vector corresponds to a different emission token, tracking the last-seen index and tokens owed for that specific reward.
+
+### Position Lifecycle
+
+1. **Creation** — A position is created when an LP adds liquidity to a market within a specific tick range
+2. **Active** — While the position has `lp_balance > 0`, it earns fees when the market price is within range
+3. **Fee Accrual** — Fees accumulate in `tokens_owed_*` fields and can be claimed at any time
+4. **Liquidity Adjustment** — The LP can add or remove liquidity, updating `lp_balance`
+5. **Closure** — When `lp_balance` reaches 0 and all tokens owed are claimed, the position can be closed
+
+### Share Trackers
+
+The `share_trackers` field maintains a `PrincipalShare` entry per tick interval in the position's range. Each tick interval tracks the principal amounts of PT and SY deposited by LPs, along with a share supply for proportional emission distribution.
+
+When a new tick is inserted within an existing range, principals are **split proportionally** between the old and new intervals using the spot prices of the bounding ticks. The `split_epoch` counter tracks when the last split occurred so positions can correctly account for historical splits.

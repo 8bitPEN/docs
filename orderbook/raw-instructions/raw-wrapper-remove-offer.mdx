@@ -1,0 +1,74 @@
+---
+title: Wrapper Remove Offer
+description: Low-level instruction to remove an offer with automatic SY redemption
+---
+
+# createWrapperRemoveOfferInstruction
+
+Builds a raw instruction that removes a posted offer from the orderbook with automatic SY redemption. This combines the offer removal and SY redemption steps atomically.
+
+## Usage
+
+```typescript
+import { createWrapperRemoveOfferInstruction } from "@exponent-labs/exponent-orderbook-client";
+import { PublicKey, SystemProgram } from "@solana/web3.js";
+
+const ix = createWrapperRemoveOfferInstruction(
+  {
+    trader: wallet.publicKey,
+    orderbook: orderbookAddress,
+    vault: vaultAddress,
+    cpiAccountOrderbook: cpiAccountsOrderbook,
+    tokenEscrowYt: orderbookEscrowYt,
+    tokenEscrowSy: orderbookEscrowSy,
+    tokenEscrowPt: orderbookEscrowPt,
+    tokenSyTrader: userSyTokenAccount,
+    tokenYtTrader: userYtTokenAccount,
+    tokenPtTrader: userPtTokenAccount,
+    systemProgram: SystemProgram.programId,
+    syProgram: syProgramId,
+    tokenProgram: TOKEN_PROGRAM_ID,
+    exponentCore: EXPONENT_CORE_PROGRAM_ID,
+    addressLookupTable: vaultLookupTable,
+    eventAuthority: eventAuthorityPda,
+    program: EXPONENT_ORDERBOOK_PROGRAM_ID,
+  },
+  {
+    offerIdx: 42,
+    redeemSyAccountsUntil: 0,
+  }
+);
+```
+
+## Accounts
+
+| Name | Type | Signer | Writable | Description |
+|------|------|--------|----------|-------------|
+| `trader` | `PublicKey` | Yes | No | The trader removing the offer |
+| `orderbook` | `PublicKey` | No | Yes | Orderbook account |
+| `vault` | `PublicKey` | No | Yes | Vault account |
+| `cpiAccountOrderbook` | `PublicKey` | No | No | CPI accounts orderbook |
+| `tokenEscrowYt` | `PublicKey` | No | Yes | Orderbook YT escrow account |
+| `tokenEscrowSy` | `PublicKey` | No | Yes | Orderbook SY escrow account |
+| `tokenEscrowPt` | `PublicKey` | No | Yes | Orderbook PT escrow account |
+| `tokenSyTrader` | `PublicKey` | No | Yes | Trader's SY token account |
+| `tokenYtTrader` | `PublicKey` | No | Yes | Trader's YT token account |
+| `tokenPtTrader` | `PublicKey` | No | Yes | Trader's PT token account |
+| `systemProgram` | `PublicKey` | No | No | System program |
+| `syProgram` | `PublicKey` | No | No | SY program |
+| `tokenProgram` | `PublicKey` | No | No | SPL Token program |
+| `exponentCore` | `PublicKey` | No | No | Exponent Core program |
+| `addressLookupTable` | `PublicKey` | No | No | Vault address lookup table |
+| `eventAuthority` | `PublicKey` | No | No | Event authority PDA |
+| `program` | `PublicKey` | No | No | Exponent Orderbook program |
+
+## Args
+
+| Name | Type | Description |
+|------|------|-------------|
+| `offerIdx` | `number` | Index of the offer to remove (u32) |
+| `redeemSyAccountsUntil` | `number` | Index into remaining accounts for SY redemption CPI accounts |
+
+## Returns
+
+`TransactionInstruction` — a Solana transaction instruction ready to be added to a transaction.

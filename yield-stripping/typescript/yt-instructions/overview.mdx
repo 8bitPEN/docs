@@ -1,0 +1,48 @@
+---
+title: Overview
+description: TypeScript SDK instructions for managing yield positions
+---
+
+# YtPosition Instructions
+
+The `YtPosition` class manages a user's yield position for a specific vault. It provides instructions for depositing and withdrawing YT, staging yield, and collecting earned interest and emissions.
+
+## Loading a YtPosition
+
+```typescript
+import { Vault, YtPosition, LOCAL_ENV } from "@exponent-labs/exponent-sdk";
+import { Connection, PublicKey } from "@solana/web3.js";
+
+const connection = new Connection("https://api.mainnet-beta.solana.com");
+const vault = await Vault.load(LOCAL_ENV, connection, vaultAddress);
+
+// Load by owner (requires vault)
+const ytPosition = await YtPosition.loadByOwner(
+  LOCAL_ENV,
+  connection,
+  wallet.publicKey,
+  vault,
+);
+```
+
+<Note>
+Before loading a `YtPosition`, the position must be initialized via [`vault.ixInitializeYieldPosition()`](/yield-stripping/typescript/instructions/ix-initialize-yield-position).
+</Note>
+
+## Yield Collection Workflow
+
+Collecting yield from a YT position is a three-step process:
+
+1. **Deposit YT** — Transfer YT tokens into the position to start accruing
+2. **Stage Yield** — Compute earned interest and emissions from the exchange rate delta
+3. **Collect** — Withdraw staged interest (as SY) or emissions (as reward tokens)
+
+## Instructions
+
+<CardGroup cols={2}>
+  <Card title="Deposit YT" href="/yield-stripping/typescript/yt-instructions/ix-deposit-yt" />
+  <Card title="Withdraw YT" href="/yield-stripping/typescript/yt-instructions/ix-withdraw-yt" />
+  <Card title="Stage Yield" href="/yield-stripping/typescript/yt-instructions/ix-stage-yield" />
+  <Card title="Collect Interest" href="/yield-stripping/typescript/yt-instructions/ix-yt-collect-interest" />
+  <Card title="Collect Emission" href="/yield-stripping/typescript/yt-instructions/ix-yt-collect-emission" />
+</CardGroup>

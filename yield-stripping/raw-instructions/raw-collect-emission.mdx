@@ -1,0 +1,73 @@
+---
+title: Collect Emission
+description: Low-level instruction to collect emission rewards from a yield position
+---
+
+# createCollectEmissionInstruction
+
+Builds a raw instruction to collect emission rewards from a yield position. Each vault can have multiple emission tokens, identified by their index.
+
+## Usage
+
+```typescript
+import { createCollectEmissionInstruction, amount } from "@exponent-labs/exponent-core-client";
+import { PublicKey } from "@solana/web3.js";
+
+const ix = createCollectEmissionInstruction(
+  {
+    owner: wallet.publicKey,
+    vault: vaultAddress,
+    position: userYieldPositionPda,
+    syProgram: syProgramId,
+    authority: vaultAuthority,
+    emissionEscrow: emissionEscrowAccount,
+    emissionDst: userEmissionTokenAccount,
+    addressLookupTable: vaultLookupTable,
+    treasuryEmissionTokenAccount: treasuryEmissionAccount,
+    tokenProgram: TOKEN_PROGRAM_ID,
+    eventAuthority: eventAuthorityPda,
+    program: EXPONENT_CORE_PROGRAM_ID,
+  },
+  {
+    index: 0, // First emission token
+    amount: amount("All"),
+  }
+);
+```
+
+## Accounts
+
+| Name | Type | Signer | Writable | Description |
+|------|------|--------|----------|-------------|
+| `owner` | `PublicKey` | Yes | Yes | The yield position owner |
+| `vault` | `PublicKey` | No | Yes | Vault account |
+| `position` | `PublicKey` | No | Yes | User's yield position PDA |
+| `syProgram` | `PublicKey` | No | No | SY program |
+| `authority` | `PublicKey` | No | No | Vault authority PDA |
+| `emissionEscrow` | `PublicKey` | No | Yes | Emission token escrow account |
+| `emissionDst` | `PublicKey` | No | Yes | Destination emission token account |
+| `addressLookupTable` | `PublicKey` | No | No | Vault address lookup table |
+| `treasuryEmissionTokenAccount` | `PublicKey` | No | Yes | Treasury emission token account (fees) |
+| `tokenProgram` | `PublicKey` | No | No | SPL Token program |
+| `eventAuthority` | `PublicKey` | No | No | Event authority PDA |
+| `program` | `PublicKey` | No | No | Exponent Core program |
+
+## Args
+
+| Name | Type | Description |
+|------|------|-------------|
+| `index` | `number` | Emission index (0-based, corresponding to vault's emission list) |
+| `amount` | `Amount` | Amount to collect: `amount("All")` or `amount("Some", [value])` |
+
+### Amount Helper
+
+```typescript
+import { amount } from "@exponent-labs/exponent-core-client";
+
+amount("All")                // collect everything available
+amount("Some", [500_000n])   // collect a specific amount
+```
+
+## Returns
+
+`TransactionInstruction` — a Solana transaction instruction ready to be added to a transaction.

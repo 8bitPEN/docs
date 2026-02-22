@@ -1,7 +1,7 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "Exponent Docs",
   "colors": {
     "primary": "#16A34A",
     "light": "#07C983",
@@ -11,58 +11,249 @@
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Home",
+        "icon": "house",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Getting Started",
             "pages": [
-              "index",
-              "quickstart",
-              "development"
+              "home/overview",
+              "home/choosing-a-protocol"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Learn",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "home/learn/standardized-yield",
+              "home/learn/principal-token",
+              "home/learn/yield-token",
+              "home/learn/token-lifecycle",
+              "home/learn/pricing-and-math",
+              "home/learn/maturity",
+              "home/learn/architecture"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Guides",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
+              "home/integration-guide",
+              "home/ai-integration"
             ]
           },
           {
-            "group": "AI tools",
+            "group": "Programs",
             "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "home/programs"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "Yield Stripping",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Introduction",
             "pages": [
-              "api-reference/introduction"
+              "yield-stripping/overview",
+              "yield-stripping/concepts",
+              "yield-stripping/sdk-quickstart",
+              "yield-stripping/support"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "TypeScript Vault Instructions",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "yield-stripping/typescript/instructions/overview",
+              "yield-stripping/typescript/instructions/ix-strip-from-base",
+              "yield-stripping/typescript/instructions/ix-merge-to-base",
+              "yield-stripping/typescript/instructions/ix-strip",
+              "yield-stripping/typescript/instructions/ix-merge",
+              "yield-stripping/typescript/instructions/ix-initialize-yield-position",
+              "yield-stripping/typescript/instructions/ix-collect-interest",
+              "yield-stripping/typescript/instructions/ix-collect-emission"
+            ]
+          },
+          {
+            "group": "TypeScript YtPosition Instructions",
+            "pages": [
+              "yield-stripping/typescript/yt-instructions/overview",
+              "yield-stripping/typescript/yt-instructions/ix-deposit-yt",
+              "yield-stripping/typescript/yt-instructions/ix-withdraw-yt",
+              "yield-stripping/typescript/yt-instructions/ix-stage-yield",
+              "yield-stripping/typescript/yt-instructions/ix-yt-collect-interest",
+              "yield-stripping/typescript/yt-instructions/ix-yt-collect-emission"
+            ]
+          },
+          {
+            "group": "TypeScript Read Functions",
+            "pages": [
+              "yield-stripping/typescript/read-functions/overview",
+              "yield-stripping/typescript/read-functions/get-exchange-rate",
+              "yield-stripping/typescript/read-functions/get-yield-position",
+              "yield-stripping/typescript/read-functions/get-claimable-interest",
+              "yield-stripping/typescript/read-functions/get-claimable-emissions"
+            ]
+          },
+          {
+            "group": "Raw Instructions",
+            "pages": [
+              "yield-stripping/raw-instructions/overview",
+              "yield-stripping/raw-instructions/raw-strip",
+              "yield-stripping/raw-instructions/raw-merge",
+              "yield-stripping/raw-instructions/raw-initialize-yield-position",
+              "yield-stripping/raw-instructions/raw-deposit-yt",
+              "yield-stripping/raw-instructions/raw-withdraw-yt",
+              "yield-stripping/raw-instructions/raw-stage-yt-yield",
+              "yield-stripping/raw-instructions/raw-collect-interest",
+              "yield-stripping/raw-instructions/raw-collect-emission",
+              "yield-stripping/raw-instructions/raw-wrapper-strip",
+              "yield-stripping/raw-instructions/raw-wrapper-merge",
+              "yield-stripping/raw-instructions/raw-wrapper-collect-interest"
+            ]
+          },
+          {
+            "group": "Account References",
+            "pages": [
+              "yield-stripping/account-references/vault",
+              "yield-stripping/account-references/yield-token-position"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Orderbook",
+        "groups": [
+          {
+            "group": "Introduction",
+            "pages": [
+              "orderbook/overview",
+              "orderbook/concepts",
+              "orderbook/virtual-offers",
+              "orderbook/sdk-quickstart",
+              "orderbook/support"
+            ]
+          },
+          {
+            "group": "TypeScript Orderbook Instructions",
+            "pages": [
+              "orderbook/typescript/instructions/overview",
+              "orderbook/typescript/instructions/ix-wrapper-post-offer",
+              "orderbook/typescript/instructions/ix-wrapper-market-offer",
+              "orderbook/typescript/instructions/ix-wrapper-remove-offer",
+              "orderbook/typescript/instructions/ix-wrapper-collect-interest",
+              "orderbook/typescript/instructions/ix-wrapper-withdraw-funds"
+            ]
+          },
+          {
+            "group": "TypeScript Read Functions",
+            "pages": [
+              "orderbook/typescript/read-functions/overview",
+              "orderbook/typescript/read-functions/get-quote",
+              "orderbook/typescript/read-functions/get-user-balances",
+              "orderbook/typescript/read-functions/get-open-orders",
+              "orderbook/typescript/read-functions/get-withdrawable-funds"
+            ]
+          },
+          {
+            "group": "Raw Instructions",
+            "pages": [
+              "orderbook/raw-instructions/overview",
+              "orderbook/raw-instructions/raw-post-offer",
+              "orderbook/raw-instructions/raw-market-offer",
+              "orderbook/raw-instructions/raw-remove-offer",
+              "orderbook/raw-instructions/raw-collect-interest",
+              "orderbook/raw-instructions/raw-withdraw-funds",
+              "orderbook/raw-instructions/raw-wrapper-post-offer",
+              "orderbook/raw-instructions/raw-wrapper-market-offer",
+              "orderbook/raw-instructions/raw-wrapper-remove-offer",
+              "orderbook/raw-instructions/raw-wrapper-collect-interest",
+              "orderbook/raw-instructions/raw-wrapper-withdraw-funds",
+              "orderbook/raw-instructions/raw-realloc-orderbook-account"
+            ]
+          },
+          {
+            "group": "Account References",
+            "pages": [
+              "orderbook/account-references/orderbook",
+              "orderbook/account-references/offer"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "CLMM",
+        "groups": [
+          {
+            "group": "Introduction",
+            "pages": [
+              "clmm/overview",
+              "clmm/concepts",
+              "clmm/sdk-quickstart",
+              "clmm/support"
+            ]
+          },
+          {
+            "group": "TypeScript CLMM Instructions",
+            "pages": [
+              "clmm/typescript/instructions/overview",
+              "clmm/typescript/instructions/ix-wrapper-buy-pt",
+              "clmm/typescript/instructions/ix-wrapper-sell-pt",
+              "clmm/typescript/instructions/ix-wrapper-buy-yt",
+              "clmm/typescript/instructions/ix-wrapper-sell-yt",
+              "clmm/typescript/instructions/ix-wrapper-provide-liquidity",
+              "clmm/typescript/instructions/ix-withdraw-liquidity-to-base",
+              "clmm/typescript/instructions/ix-provide-liquidity-classic",
+              "clmm/typescript/instructions/ix-withdraw-liquidity-classic"
+            ]
+          },
+          {
+            "group": "TypeScript Read Functions",
+            "pages": [
+              "clmm/typescript/read-functions/overview",
+              "clmm/typescript/read-functions/get-pool-info",
+              "clmm/typescript/read-functions/get-pt-and-sy-on-withdraw",
+              "clmm/typescript/read-functions/get-user-lp-positions",
+              "clmm/typescript/read-functions/calculate-claimable-fees",
+              "clmm/typescript/read-functions/compute-fee-inside-for-range",
+              "clmm/typescript/read-functions/calculate-historical-fee-apy",
+              "clmm/typescript/read-functions/liquidity-unit-price-in-asset",
+              "clmm/typescript/read-functions/calc-global-fee-rate"
+            ]
+          },
+          {
+            "group": "Raw Instructions",
+            "pages": [
+              "clmm/raw-instructions/overview",
+              "clmm/raw-instructions/common-accounts",
+              "clmm/raw-instructions/raw-add-liquidity",
+              "clmm/raw-instructions/raw-deposit-liquidity",
+              "clmm/raw-instructions/raw-withdraw-liquidity",
+              "clmm/raw-instructions/raw-trade-pt",
+              "clmm/raw-instructions/raw-trade-pt-exact-out",
+              "clmm/raw-instructions/raw-buy-pt",
+              "clmm/raw-instructions/raw-sell-pt",
+              "clmm/raw-instructions/raw-buy-pt-exact-out",
+              "clmm/raw-instructions/raw-sell-pt-exact-out",
+              "clmm/raw-instructions/raw-buy-yt",
+              "clmm/raw-instructions/raw-sell-yt",
+              "clmm/raw-instructions/raw-wrapper-buy-pt",
+              "clmm/raw-instructions/raw-wrapper-sell-pt",
+              "clmm/raw-instructions/raw-wrapper-buy-yt",
+              "clmm/raw-instructions/raw-wrapper-sell-yt",
+              "clmm/raw-instructions/raw-wrapper-provide-liquidity",
+              "clmm/raw-instructions/raw-wrapper-provide-liquidity-base",
+              "clmm/raw-instructions/raw-wrapper-provide-liquidity-classic",
+              "clmm/raw-instructions/raw-wrapper-withdraw-liquidity",
+              "clmm/raw-instructions/raw-wrapper-withdraw-liquidity-classic",
+              "clmm/raw-instructions/raw-market-accrue-emission"
+            ]
+          },
+          {
+            "group": "Account References",
+            "pages": [
+              "clmm/account-references/market",
+              "clmm/account-references/lp-position",
+              "clmm/account-references/farm"
             ]
           }
         ]
@@ -71,14 +262,9 @@
     "global": {
       "anchors": [
         {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
+          "anchor": "Telegram",
+          "href": "https://t.me/wentelegram",
+          "icon": "paper-plane"
         }
       ]
     }
@@ -91,32 +277,25 @@
     "links": [
       {
         "label": "Support",
-        "href": "mailto:hi@mintlify.com"
+        "href": "https://t.me/wentelegram"
       }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
+    ]
   },
   "contextual": {
     "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
+      "copy",
+      "view",
+      "chatgpt",
+      "claude",
+      "perplexity",
+      "mcp",
+      "cursor",
+      "vscode"
+    ]
   },
   "footer": {
     "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
+      "telegram": "https://t.me/wentelegram"
     }
   }
 }

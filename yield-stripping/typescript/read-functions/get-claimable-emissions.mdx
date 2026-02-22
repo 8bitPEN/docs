@@ -1,0 +1,39 @@
+---
+title: Get Claimable Emissions
+description: Calculate claimable emission rewards for a yield position
+---
+
+The `getClaimableEmissions` method on the `YtPosition` class calculates the amount of emission rewards available for collection across all configured emission tokens.
+
+## Usage
+
+```typescript
+import { YtPosition, Vault, LOCAL_ENV } from "@exponent-labs/exponent-sdk";
+import { Connection, PublicKey } from "@solana/web3.js";
+
+const connection = new Connection("https://api.mainnet-beta.solana.com");
+const vault = await Vault.load(LOCAL_ENV, connection, vaultAddress);
+const ytPosition = await YtPosition.loadByOwner(LOCAL_ENV, connection, wallet.publicKey, vault);
+
+const emissions = ytPosition.getClaimableEmissions();
+
+emissions.forEach((emission, index) => {
+  console.log(`Emission ${index}:`);
+  console.log("  Mint:", emission.mint.toBase58());
+  console.log("  Amount:", emission.amount);
+});
+```
+
+## Returns
+
+Returns an array of objects, one per configured emission token:
+
+| Field    | Type        | Description                              |
+| -------- | ----------- | ---------------------------------------- |
+| `mint`   | `PublicKey`  | The emission token mint address          |
+| `amount` | `number`    | Claimable emission amount (raw units)    |
+
+The calculation accounts for:
+- The user's proportional SY balance (staged interest + converted YT balance)
+- The difference between the global emission index and the user's last seen index
+- Previously staged emission amounts

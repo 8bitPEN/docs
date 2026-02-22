@@ -1,0 +1,55 @@
+---
+title: Deposit Liquidity
+description: Low-level instruction to create a new LP position and deposit liquidity
+---
+
+# createDepositLiquidityInstruction
+
+Builds a raw instruction to create a new LP position and deposit liquidity at specified tick boundaries. This initializes a fresh position account and deposits PT and SY tokens into the pool within the defined tick range.
+
+## Usage
+
+```typescript
+import { createDepositLiquidityInstruction } from "@exponent-labs/exponent-clmm-client";
+import { Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
+
+const lpPositionKeypair = Keypair.generate();
+
+const ix = createDepositLiquidityInstruction({
+  depositor: depositorKeypair.publicKey,
+  market: marketAddress,
+  ticks: ticksAccount,
+  lpPosition: lpPositionKeypair.publicKey,
+  tokenPtSrc: depositorPtTokenAccount,
+  tokenSySrc: depositorSyTokenAccount,
+  tokenPtEscrow: marketPtEscrow,
+  tokenSyEscrow: marketSyEscrow,
+  addressLookupTable: lookupTableAddress,
+  tokenProgram: tokenProgramId,
+  syProgram: syProgramId,
+  systemProgram: SystemProgram.programId,
+  eventAuthority: eventAuthorityPda,
+  program: clmmProgramId,
+  lowerTickKey: 100,
+  upperTickKey: 200,
+  maxSyIn: 1_000_000_000n,
+  maxPtIn: 500_000_000n,
+});
+```
+
+## Accounts
+
+This instruction uses the [Liquidity Accounts](/clmm/raw-instructions/common-accounts#liquidity-accounts).
+
+## Args
+
+| Name | Type | Description |
+|------|------|-------------|
+| `lowerTickKey` | `u32` | Lower tick boundary for the position |
+| `upperTickKey` | `u32` | Upper tick boundary for the position |
+| `maxSyIn` | `u64` | Maximum amount of SY tokens to deposit |
+| `maxPtIn` | `u64` | Maximum amount of PT tokens to deposit |
+
+## Returns
+
+`TransactionInstruction` — a Solana transaction instruction ready to be added to a transaction.

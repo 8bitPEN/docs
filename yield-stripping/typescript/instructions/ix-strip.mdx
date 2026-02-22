@@ -1,0 +1,47 @@
+---
+title: Strip (SY)
+description: Strip SY tokens into PT and YT
+---
+
+The `ixStrip` method on the `Vault` class creates a transaction instruction that strips SY tokens into equal amounts of PT and YT.
+
+<Note>
+This method takes SY tokens directly. If you want to strip from a base asset (e.g., USDC), use [`ixStripFromBase`](/yield-stripping/typescript/instructions/ix-strip-from-base) instead.
+</Note>
+
+## Usage
+
+```typescript
+import { Vault, LOCAL_ENV } from "@exponent-labs/exponent-sdk";
+import { Connection, PublicKey, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
+
+const connection = new Connection("https://api.mainnet-beta.solana.com");
+const vault = await Vault.load(LOCAL_ENV, connection, vaultAddress);
+
+const ix = vault.ixStrip({
+  syIn: 1_000_000n,
+  depositor: wallet.publicKey,
+});
+
+const tx = new Transaction().add(ix);
+const signature = await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+## Required Parameters
+
+| Parameter   | Type        | Description                     |
+| ----------- | ----------- | ------------------------------- |
+| `syIn`      | `bigint`    | Amount of SY tokens to strip    |
+| `depositor` | `PublicKey`  | The depositor's wallet public key |
+
+## Optional Parameters
+
+| Parameter | Type        | Description                                                |
+| --------- | ----------- | ---------------------------------------------------------- |
+| `sySrc`   | `PublicKey`  | Source SY token account. Defaults to depositor's ATA       |
+| `ptDst`   | `PublicKey`  | Destination PT token account. Defaults to depositor's ATA  |
+| `ytDst`   | `PublicKey`  | Destination YT token account. Defaults to depositor's ATA  |
+
+## Returns
+
+Returns a `TransactionInstruction` that strips SY into PT and YT. The number of PT and YT minted equals `syIn × exchangeRate`.

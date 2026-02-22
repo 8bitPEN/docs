@@ -1,0 +1,40 @@
+---
+title: Deposit YT
+description: Deposit YT tokens into a yield position to start accruing interest
+---
+
+The `ixDepositYt` method on the `YtPosition` class creates a transaction instruction that deposits YT tokens into the yield position. Once deposited, the position begins accruing interest and emissions.
+
+## Usage
+
+```typescript
+import { Vault, YtPosition, LOCAL_ENV } from "@exponent-labs/exponent-sdk";
+import { Connection, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
+
+const connection = new Connection("https://api.mainnet-beta.solana.com");
+const vault = await Vault.load(LOCAL_ENV, connection, vaultAddress);
+const ytPosition = await YtPosition.loadByOwner(LOCAL_ENV, connection, wallet.publicKey, vault);
+
+const ix = ytPosition.ixDepositYt({
+  amount: 1_000_000n,
+});
+
+const tx = new Transaction().add(ix);
+const signature = await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+## Required Parameters
+
+| Parameter | Type     | Description                      |
+| --------- | -------- | -------------------------------- |
+| `amount`  | `bigint` | Amount of YT tokens to deposit   |
+
+## Optional Parameters
+
+| Parameter | Type        | Description                                            |
+| --------- | ----------- | ------------------------------------------------------ |
+| `ytSrc`   | `PublicKey`  | Source YT token account. Defaults to owner's ATA       |
+
+## Returns
+
+Returns a `TransactionInstruction` that transfers YT from the user's token account into the yield position escrow.

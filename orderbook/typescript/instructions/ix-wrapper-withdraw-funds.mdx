@@ -1,0 +1,92 @@
+---
+title: Withdraw Funds
+description: Withdraw funds from the orderbook
+---
+
+The `ixWrapperWithdrawFunds` instruction withdraws trading balances from your orderbook escrow.
+
+When you post an order, tokens enter the escrow. As orders fill, balances shift between token types (e.g., SY becomes YT on a filled BuyYT). After removing unfilled orders, the remaining balances become withdrawable. Use this instruction to transfer PT, YT, and SY from your escrow to your wallet.
+
+<Note>
+Staged interest from YT accrual is **not** included in these balances. Collect it separately with [ixWrapperCollectInterest](/orderbook/typescript/instructions/ix-wrapper-collect-interest).
+</Note>
+
+## Usage
+
+```typescript
+import { amount } from "@exponent-labs/exponent-orderbook-client";
+import { PublicKey } from "@solana/web3.js";
+
+const ix = await orderbook.ixWrapperWithdrawFunds({
+  // The trader's wallet public key
+  trader: wallet.publicKey,
+  // The SY token mint address
+  mintSy: syMintAddress,
+  // Amount of PT tokens to withdraw
+  ptAmount: amount("Some", [500_000_000n]),
+  // Amount of YT tokens to withdraw
+  ytAmount: amount("Some", [500_000_000n]),
+  // Withdraw all available SY tokens
+  syAmount: amount("All"),
+});
+```
+
+## Required Parameters
+
+| Parameter  | Type        | Description                     |
+| ---------- | ----------- | ------------------------------- |
+| `trader`   | `PublicKey` | The trader's wallet public key  |
+| `mintSy`   | `PublicKey` | The SY token mint address       |
+| `ptAmount` | `Amount`    | Amount of PT tokens to withdraw |
+| `ytAmount` | `Amount`    | Amount of YT tokens to withdraw |
+| `syAmount` | `Amount`    | Amount of SY tokens to withdraw |
+
+## Optional Parameters
+
+| Parameter         | Type        | Description                       |
+| ----------------- | ----------- | --------------------------------- |
+| `ptSrc`           | `PublicKey` | PT token source account           |
+| `ytSrc`           | `PublicKey` | YT token source account           |
+| `sySrc`           | `PublicKey` | SY token source account           |
+| `tokenBaseTrader` | `PublicKey` | Base token account for the trader |
+
+## Amount Helper
+
+The `amount` helper from `@exponent-labs/exponent-orderbook-client` creates the discriminated union used for withdrawal amounts:
+
+```typescript
+import { amount } from "@exponent-labs/exponent-orderbook-client";
+
+// Withdraw all available funds
+amount("All")
+
+// Withdraw a specific amount (bigint)
+amount("Some", [500_000_000n])
+```
+
+## Returns
+
+Returns a `TransactionInstruction` that executes the withdraw call.
+
+## Checking Withdrawable Funds
+
+Before withdrawing, you can check the available balances using `getUserBalances`:
+
+```typescript
+import { amount } from "@exponent-labs/exponent-orderbook-client";
+
+const balances = orderbook.getUserBalances(wallet.publicKey);
+
+console.log("Withdrawable PT:", balances.pt);
+console.log("Withdrawable YT:", balances.yt);
+console.log("Withdrawable SY:", balances.sy);
+
+// Withdraw all available funds
+const ix = await orderbook.ixWrapperWithdrawFunds({
+  trader: wallet.publicKey,
+  mintSy: syMintAddress,
+  ptAmount: amount("All"),
+  ytAmount: amount("All"),
+  syAmount: amount("All"),
+});
+```

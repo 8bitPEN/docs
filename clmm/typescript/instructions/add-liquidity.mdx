@@ -1,0 +1,40 @@
+---
+title: Add Liquidity
+description: Add concentrated liquidity to a CLMM pool
+---
+
+The `addLiquidity` instruction deposits tokens into a position within a specified tick range.
+
+## Usage
+
+```typescript
+import { BN } from "@coral-xyz/anchor";
+
+const { ix, setupIxs } = await pool.addLiquidity({
+  provider: wallet.publicKey,
+  lowerTick: -500,
+  upperTick: 500,
+  amount: new BN(1_000_000_000),
+  slippage: 0.01,
+});
+
+const tx = new Transaction().add(...setupIxs, ix);
+const signature = await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+## Required Parameters
+
+| Parameter   | Type        | Description                                          |
+| ----------- | ----------- | ---------------------------------------------------- |
+| `provider`  | `PublicKey` | The liquidity provider's wallet                       |
+| `lowerTick` | `number`    | Lower bound tick of the position                      |
+| `upperTick` | `number`    | Upper bound tick of the position                      |
+| `amount`    | `BN`        | Amount of liquidity to add                            |
+| `slippage`  | `number`    | Maximum acceptable slippage (e.g., 0.01 for 1%)       |
+
+## Returns
+
+Returns an object with:
+
+- `ix` - The `TransactionInstruction` that adds liquidity
+- `setupIxs` - An array of setup instructions to run before `ix`

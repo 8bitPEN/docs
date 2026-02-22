@@ -1,0 +1,67 @@
+---
+title: Offer
+description: Offer structure and fields
+---
+
+# Offer
+
+The Offer struct represents a single order on the orderbook.
+
+## Offer Structure
+
+```rust
+#[repr(C)]
+pub struct Offer {
+    /// Order size in SY, PT, or YT (deposited amount)
+    pub amount: u64,
+
+    /// Expiry time as Unix timestamp
+    pub expiry_at: u32,
+
+    /// Created at Unix timestamp
+    pub created_at: u32,
+
+    /// Virtual offer flag (true if this is a PT order)
+    pub virtual_offer: u8,
+
+    /// Offer type flag (SellYt or BuyYt)
+    pub offer_type_flag: u8,
+
+    /// Fill or kill flag
+    /// If true, the order must be filled completely or cancelled
+    pub fill_or_kill: u8,
+}
+```
+
+## Fields
+
+| Field             | Type  | Description                                    |
+| ----------------- | ----- | ---------------------------------------------- |
+| `amount`          | `u64` | Order size in lamports                         |
+| `expiry_at`       | `u32` | Unix timestamp when the offer expires          |
+| `created_at`      | `u32` | Unix timestamp when the offer was created      |
+| `virtual_offer`   | `u8`  | 1 if this is a virtual (PT) order, 0 otherwise |
+| `offer_type_flag` | `u8`  | Offer type (SellYt or BuyYt)                   |
+| `fill_or_kill`    | `u8`  | 1 if order must fill completely or cancel      |
+
+## OfferType
+
+```rust
+#[repr(u8)]
+pub enum OfferType {
+    SellYt = 0,
+    BuyYt = 1,
+}
+```
+
+| Variant  | Value | Description       |
+| -------- | ----- | ----------------- |
+| `SellYt` | 0     | Selling YT for SY |
+| `BuyYt`  | 1     | Buying YT with SY |
+
+## Virtual Offers
+
+When `virtual_offer` is set to `1`, the offer represents a PT order rather than a direct YT order. The orderbook converts between PT and YT using strip/merge at the taker level.
+
+- `virtual_offer = 0`: Direct YT order
+- `virtual_offer = 1`: Virtual PT order (converted via strip/merge)

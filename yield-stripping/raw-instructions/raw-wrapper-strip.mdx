@@ -1,0 +1,76 @@
+---
+title: Wrapper Strip
+description: Low-level instruction to wrap a base asset and strip into PT + YT atomically
+---
+
+# createWrapperStripInstruction
+
+Builds a raw instruction that wraps a base asset into SY and strips it into PT + YT in a single atomic operation. This combines the SY minting and stripping steps.
+
+## Usage
+
+```typescript
+import { createWrapperStripInstruction } from "@exponent-labs/exponent-core-client";
+import { PublicKey, SystemProgram } from "@solana/web3.js";
+
+const ix = createWrapperStripInstruction(
+  {
+    depositor: wallet.publicKey,
+    tokenSyDepositor: userSyTokenAccount,
+    vault: vaultAddress,
+    escrowSy: vaultEscrowSy,
+    tokenYtDepositor: userYtTokenAccount,
+    tokenPtDepositor: userPtTokenAccount,
+    mintYt: ytMint,
+    mintPt: ptMint,
+    authority: vaultAuthority,
+    vaultAddressLookupTable: vaultLookupTable,
+    tokenProgram: TOKEN_PROGRAM_ID,
+    escrowYt: vaultEscrowYt,
+    userYieldPosition: userYieldPositionPda,
+    vaultRobotYieldPosition: vaultYieldPosition,
+    syProgram: syProgramId,
+    systemProgram: SystemProgram.programId,
+    eventAuthority: eventAuthorityPda,
+    program: EXPONENT_CORE_PROGRAM_ID,
+  },
+  {
+    amountBase: BigInt(1_000_000),
+    mintSyAccountsUntil: 0,
+  }
+);
+```
+
+## Accounts
+
+| Name | Type | Signer | Writable | Description |
+|------|------|--------|----------|-------------|
+| `depositor` | `PublicKey` | Yes | Yes | The user performing the strip |
+| `tokenSyDepositor` | `PublicKey` | No | Yes | User's SY token account (intermediate) |
+| `vault` | `PublicKey` | No | Yes | Vault account |
+| `escrowSy` | `PublicKey` | No | Yes | Vault SY escrow account |
+| `tokenYtDepositor` | `PublicKey` | No | Yes | User's destination YT token account |
+| `tokenPtDepositor` | `PublicKey` | No | Yes | User's destination PT token account |
+| `mintYt` | `PublicKey` | No | Yes | YT mint address |
+| `mintPt` | `PublicKey` | No | Yes | PT mint address |
+| `authority` | `PublicKey` | No | Yes | Vault authority PDA |
+| `vaultAddressLookupTable` | `PublicKey` | No | No | Vault address lookup table |
+| `tokenProgram` | `PublicKey` | No | No | SPL Token program |
+| `escrowYt` | `PublicKey` | No | Yes | Vault YT escrow account |
+| `userYieldPosition` | `PublicKey` | No | Yes | User's yield position PDA |
+| `vaultRobotYieldPosition` | `PublicKey` | No | Yes | Vault robot yield position |
+| `syProgram` | `PublicKey` | No | No | SY program |
+| `systemProgram` | `PublicKey` | No | No | System program |
+| `eventAuthority` | `PublicKey` | No | No | Event authority PDA |
+| `program` | `PublicKey` | No | No | Exponent Core program |
+
+## Args
+
+| Name | Type | Description |
+|------|------|-------------|
+| `amountBase` | `bigint` | Amount of base asset to wrap and strip (in base units) |
+| `mintSyAccountsUntil` | `number` | Index into remaining accounts for SY minting CPI accounts |
+
+## Returns
+
+`TransactionInstruction` — a Solana transaction instruction ready to be added to a transaction.

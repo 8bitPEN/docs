@@ -1,0 +1,57 @@
+---
+title: Get User LP Positions
+description: Retrieve all LP positions for a user in a specific market
+---
+
+The `getUserLpPositions()` method retrieves all liquidity provider positions owned by a specific user in a given market.
+
+## Usage
+
+```typescript
+import { MarketThree, LOCAL_ENV } from "@exponent-labs/exponent-sdk";
+import { Connection, PublicKey } from "@solana/web3.js";
+
+const connection = new Connection("https://api.mainnet-beta.solana.com");
+const market = await MarketThree.load(LOCAL_ENV, connection, marketAddress);
+
+// Get all LP positions for a user
+const { lpPositions } = await market.getUserLpPositions(
+  wallet.publicKey,
+  marketAddress
+);
+
+// Iterate through positions
+for (const positionArray of lpPositions) {
+  for (const position of positionArray) {
+    console.log("Position address:", position.publicKey.toBase58());
+    console.log("LP balance:", position.account.lpBalance);
+    console.log("Lower tick:", position.account.lowerTickKey);
+    console.log("Upper tick:", position.account.upperTickKey);
+  }
+}
+```
+
+## Parameters
+
+| Parameter | Type        | Required | Description                                   |
+| --------- | ----------- | -------- | --------------------------------------------- |
+| `owner`   | `PublicKey` | Yes      | The wallet address of the position owner      |
+| `market`  | `PublicKey` | Yes      | The market address to query positions from    |
+
+## Returns
+
+Returns an object with:
+
+```typescript
+{
+  lpPositions: Array<Array<ProgramAccount<LpPositionCLMM>>>;
+}
+```
+
+| Property       | Type                                          | Description                                                       |
+| -------------- | --------------------------------------------- | ----------------------------------------------------------------- |
+| `lpPositions`  | `Array<Array<ProgramAccount<LpPositionCLMM>>>` | Nested array of LP position accounts with their public keys and account data |
+
+Each position in the array contains:
+- `publicKey` - The position's account address
+- `account` - The position account data including `lpBalance`, `lowerTickKey`, `upperTickKey`, fees, and emissions

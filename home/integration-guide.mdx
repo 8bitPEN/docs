@@ -1,0 +1,939 @@
+---
+title: Integration Guide
+description: Complete code examples showing how to use Exponent protocols together in real-world scenarios
+---
+
+This guide provides production-ready code examples demonstrating how to combine Yield Stripping, CLMM, and Orderbook protocols for common use cases.
+
+## Prerequisites
+
+Install the SDK:
+
+```bash
+npm install @exponent-labs/exponent-sdk @solana/web3.js @coral-xyz/anchor
+```
+
+## Basic Setup
+
+```typescript
+import { Connection, PublicKey, Keypair } from "@solana/web3.js";
+import { Wallet } from "@coral-xyz/anchor";
+import { Vault, MarketThree, Orderbook, YtPosition, LOCAL_ENV } from "@exponent-labs/exponent-sdk";
+
+// Connection setup
+const connection = new Connection("https://api.mainnet-beta.solana.com", "confirmed");
+const wallet = new Wallet(Keypair.fromSecretKey(/* your secret key */));
+
+// Load SDK instances
+const vaultPubkey = new PublicKey("your_vault_address");
+const marketPubkey = new PublicKey("your_market_address");
+const orderbookPubkey = new PublicKey("your_orderbook_address");
+
+const vault = await Vault.load(LOCAL_ENV, connection, vaultPubkey);
+const market = await MarketThree.load(LOCAL_ENV, connection, marketPubkey);
+const orderbook = await Orderbook.load(LOCAL_ENV, connection, orderbookPubkey);
+```
+
+---
+
+## Example 1: Strip SY → Trade PT on CLMM → Merge Back
+
+This example demonstrates the complete lifecycle: deposit → strip → trade → collect yield → merge → withdraw.
+
+```typescript
+import { sendAndConfirmTransaction, Transaction } from "@solana/web3.js";
+import { getAssociatedTokenAddressSync } from "@solana/spl-token";
+import { BN } from "@coral-xyz/anchor";
+
+async function example1_CompleteLifecycle() {
+  const user = wallet.publicKey;
+
+  console.log("=== Example 1: Complete PT/YT Lifecycle ===");
+
+  // -------------------------------------------------------------------
+  // Step 1: Wrap base asset (USDC) into SY
+  // -------------------------------------------------------------------
+
+  console.log("Step 1: Wrapping 1000 USDC into SY...");
+
+  const baseAssetMint = new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"); // USDC
+  const baseAmount = 1000 * 1_000000; // 1000 USDC (6 decimals)
+
+  const stripFromBaseIx = await vault.ixStripFromBase({
+    owner: user,
+    amountBase: BigInt(baseAmount),
+  });
+
+  let tx = new Transaction().add(stripFromBaseIx);
+  let sig = await sendAndConfirmTransaction(connection, tx, [wallet.payer], {
+    commitment: "confirmed",
+  });
+
+  console.log(`✓ Stripped from base. Signature: ${sig}`);
+  console.log(`  Received: ~${baseAmount / 1_000000} PT + ~${baseAmount / 1_000000} YT`);
+
+  // -------------------------------------------------------------------
+  // Step 2: Sell 500 PT on CLMM for SY
+  // -------------------------------------------------------------------
+
+  console.log("\nStep 2: Selling 500 PT on CLMM...");
+
+  await vault.reload(); // Refresh vault state
+  await market.reload(); // Refresh market state
+
+  const ptToSell = BigInt(500_000000); // 500 PT
+
+  const sellPtIx = market.ixSellPt({
+    trader: user,
+    amountPt: ptToSell,
+    outConstraint: BigInt(475_000000), // Minimum 475 SY (5% slippage tolerance)
+  });
+
+  tx = new Transaction().add(sellPtIx);
+  sig = await sendAndConfirmTransaction(
+    connection,
+    tx,
+    [wallet.payer],
+    { commitment: "confirmed" }
+  );
+
+  console.log(`✓ Sold PT on CLMM. Signature: ${sig}`);
+  console.log(`  Received: ~475-490 SY (depending on pool price)`);
+
+  // -------------------------------------------------------------------
+  // Step 3: Initialize yield position and deposit YT
+  // -------------------------------------------------------------------
+
+  console.log("\nStep 3: Depositing YT to earn yield...");
+
+  // Check if yield position exists
+  const yieldPositionPda = vault.pda.yieldPosition({ owner: user, vault: vault.selfAddress });
+  const yieldPositionAccount = await connection.getAccountInfo(yieldPositionPda);
+
+  if (!yieldPositionAccount) {
+    // Initialize yield position (one-time setup)
+    const initYieldPosIx = vault.ixInitializeYieldPosition({
+      owner: user,
+    });
+
+    tx = new Transaction().add(initYieldPosIx);
+    sig = await sendAndConfirmTransaction(connection, tx, [wallet.payer]);
+    console.log(`✓ Initialized yield position. Signature: ${sig}`);
+  }
+
+  // Load yield position and deposit YT
+  const ytPosition = await YtPosition.loadByOwner(LOCAL_ENV, connection, user, vault);
+  const ytToDeposit = BigInt(1000_000000); // All 1000 YT
+
+  const depositYtIx = ytPosition.ixDepositYt({
+    amount: ytToDeposit,
+  });
+
+  tx = new Transaction().add(depositYtIx);
+  sig = await sendAndConfirmTransaction(connection, tx, [wallet.payer]);
+
+  console.log(`✓ Deposited 1000 YT. Signature: ${sig}`);
+  console.log(`  YT is now earning yield...`);
+
+  // -------------------------------------------------------------------
+  // Step 4: Wait for yield to accrue (simulated with delay)
+  // -------------------------------------------------------------------
+
+  console.log("\nStep 4: Waiting for yield to accrue...");
+  console.log("  (In production, this would be days/weeks)");
+
+  // In real scenario: await new Promise(resolve => setTimeout(resolve, days * 86400 * 1000));
+  // For demo purposes, assume time has passed
+
+  // -------------------------------------------------------------------
+  // Step 5: Stage and collect YT yield
+  // -------------------------------------------------------------------
+
+  console.log("\nStep 5: Collecting YT yield...");
+
+  await vault.reload();
+
+  // Reload yield position to pick up latest state
+  const ytPositionForYield = await YtPosition.loadByOwner(LOCAL_ENV, connection, user, vault);
+
+  // Stage yield (calculates earned interest)
+  const stageYieldIx = ytPositionForYield.ixStageYield({
+    payer: user,
+  });
+
+  // Collect interest (transfers to user)
+  const collectInterestIx = ytPositionForYield.ixCollectInterest({
+    signer: user,
+  });
+
+  tx = new Transaction().add(stageYieldIx).add(collectInterestIx);
+  sig = await sendAndConfirmTransaction(connection, tx, [wallet.payer]);
+
+  console.log(`✓ Collected YT yield. Signature: ${sig}`);
+  console.log(`  Received: ~X SY (depends on time elapsed and exchange rate growth)`);
+
+  // -------------------------------------------------------------------
+  // Step 6: Withdraw YT from position
+  // -------------------------------------------------------------------
+
+  console.log("\nStep 6: Withdrawing YT from yield position...");
+
+  const withdrawYtIx = ytPositionForYield.ixWithdrawYt({
+    amount: ytToDeposit, // Withdraw all YT
+  });
+
+  tx = new Transaction().add(withdrawYtIx);
+  sig = await sendAndConfirmTransaction(connection, tx, [wallet.payer]);
+
+  console.log(`✓ Withdrew 1000 YT. Signature: ${sig}`);
+
+  // -------------------------------------------------------------------
+  // Step 7: Merge PT + YT back into SY
+  // -------------------------------------------------------------------
+
+  console.log("\nStep 7: Merging 500 PT + 500 YT back into SY...");
+
+  await vault.reload();
+
+  const pyToMerge = BigInt(500_000000); // Merge 500 units
+
+  const mergeIx = await vault.ixMerge({
+    depositor: user,
+    pyIn: pyToMerge, // Merges 500 PT + 500 YT
+  });
+
+  tx = new Transaction().add(mergeIx);
+  sig = await sendAndConfirmTransaction(connection, tx, [wallet.payer]);
+
+  console.log(`✓ Merged PT + YT. Signature: ${sig}`);
+  console.log(`  Received: ~500 SY (PT redemption rate applied)`);
+
+  // -------------------------------------------------------------------
+  // Step 8: Redeem SY back to base asset (USDC)
+  // -------------------------------------------------------------------
+
+  console.log("\nStep 8: Redeeming SY back to USDC...");
+
+  const pyToRedeem = BigInt(500_000000); // Redeem remaining PT + YT
+
+  const { ixs: mergeIxs, setupIxs: mergeSetupIxs } = await vault.ixMergeToBase({
+    owner: user,
+    amountPy: pyToRedeem,
+  });
+
+  tx = new Transaction().add(...mergeSetupIxs, ...mergeIxs);
+  sig = await sendAndConfirmTransaction(connection, tx, [wallet.payer]);
+
+  console.log(`✓ Redeemed to base asset. Signature: ${sig}`);
+  console.log(`  Received: ~X USDC (depends on final exchange rate)`);
+
+  console.log("\n=== Example 1 Complete ===");
+}
+```
+
+**Key Takeaways:**
+- `ixStripFromBase` wraps base asset → SY → PT + YT in one transaction
+- `ixMergeToBase` unwraps PT + YT → SY → base asset in one transaction
+- Always `reload()` SDK instances before querying state
+- YT must be deposited into a yield position to earn
+
+---
+
+## Example 2: Strip → Post YT Limit Order on Orderbook → Collect Interest
+
+This example shows how to use the orderbook for passive limit orders while earning yield on open orders.
+
+```typescript
+import * as exponentOrderbook from "@exponent-labs/exponent-orderbook-client";
+
+async function example2_OrderbookYieldEarning() {
+  const user = wallet.publicKey;
+
+  console.log("=== Example 2: Orderbook Limit Order + Interest ===");
+
+  // -------------------------------------------------------------------
+  // Step 1: Strip SY into PT + YT
+  // -------------------------------------------------------------------
+
+  console.log("Step 1: Stripping 2000 SY into PT + YT...");
+
+  const stripIx = vault.ixStrip({
+    depositor: user,
+    syIn: BigInt(2000_000000),
+  });
+
+  let tx = new Transaction().add(stripIx);
+  let sig = await sendAndConfirmTransaction(connection, tx, [wallet.payer]);
+
+  console.log(`✓ Stripped SY. Signature: ${sig}`);
+  console.log(`  Received: 2000 PT + 2000 YT`);
+
+  // -------------------------------------------------------------------
+  // Step 2: Post limit order to sell 1500 YT at 15% implied APY
+  // -------------------------------------------------------------------
+
+  console.log("\nStep 2: Posting SellYT limit order at 15% APY...");
+
+  await orderbook.reload();
+
+  const postOfferIx = orderbook.ixPostOffer({
+    trader: user,
+    price: 0.15, // 15% implied APY
+    amount: 1_500_000000n, // 1500 YT
+    offerType: exponentOrderbook.OfferType.SellYt,
+    offerOption: exponentOrderbook.offerOptions("FillOrKill", [false]), // Allow partial fills
+    virtualOffer: false, // Real YT offer (not PT)
+    expirySeconds: 86400 * 7, // 7 day expiry
+    mintSy: vault.mintSy,
+  });
+
+  tx = new Transaction().add(postOfferIx);
+  sig = await sendAndConfirmTransaction(connection, tx, [wallet.payer]);
+
+  console.log(`✓ Posted limit order. Signature: ${sig}`);
+  console.log(`  Order: Sell 1500 YT at 15% APY`);
+  console.log(`  Expiry: 7 days`);
+
+  // -------------------------------------------------------------------
+  // Step 3: Wait for order to fill OR time to pass
+  // -------------------------------------------------------------------
+
+  console.log("\nStep 3: Waiting for order to fill or yield to accrue...");
+  console.log("  (Order sits in book, YT earns yield)");
+
+  // In production: monitor order status
+  // const openOrders = await orderbook.getOpenOrders({ user });
+  // Check if order is filled, partially filled, or still open
+
+  // Simulate time passing (in reality this would be days)
+  await new Promise(resolve => setTimeout(resolve, 5000));
+
+  // -------------------------------------------------------------------
+  // Step 4: Collect interest on YT in open order
+  // -------------------------------------------------------------------
+
+  console.log("\nStep 4: Collecting interest on YT in order book...");
+
+  await orderbook.reload();
+
+  // Orderbook wrapper instruction handles SY conversion
+  const collectInterestIx = await orderbook.ixWrapperCollectInterest({
+    trader: user,
+    mintSy: vault.mintSy,
+  });
+
+  tx = new Transaction().add(collectInterestIx);
+  sig = await sendAndConfirmTransaction(connection, tx, [wallet.payer]);
+
+  console.log(`✓ Collected interest. Signature: ${sig}`);
+  console.log(`  Received: ~X SY (yield accrued on YT in open order)`);
+
+  // -------------------------------------------------------------------
+  // Step 5: Check order status and balances
+  // -------------------------------------------------------------------
+
+  console.log("\nStep 5: Checking order status and escrow balances...");
+
+  await orderbook.reload();
+
+  const userBalances = orderbook.getUserBalances(user);
+
+  console.log(`User Escrow Balances:`);
+  console.log(`  PT: ${userBalances.pt}`);
+  console.log(`  YT: ${userBalances.yt}`);
+  console.log(`  SY: ${userBalances.sy}`);
+  console.log(`  Staked YT: ${userBalances.stakedYt}`);
+  console.log(`  Staged SY: ${userBalances.staged}`);
+
+  const openOrders = orderbook.getUserOpenOrders(user);
+  console.log(`\nOpen Orders: ${openOrders.length}`);
+
+  openOrders.forEach((order, idx) => {
+    console.log(`  Order ${idx + 1}:`);
+    console.log(`    Type: ${order.type}`);
+    console.log(`    Amount: ${order.amount}`);
+    console.log(`    Price APY: ${order.priceApy}%`);
+    console.log(`    Virtual: ${order.isVirtual}`);
+    console.log(`    Expiry: ${new Date(order.expiryAt * 1000).toISOString()}`);
+  });
+
+  // -------------------------------------------------------------------
+  // Step 6: Withdraw escrow balances
+  // -------------------------------------------------------------------
+
+  console.log("\nStep 6: Withdrawing escrow balances...");
+
+  const withdrawIx = await orderbook.ixWrapperWithdrawFunds({
+    trader: user,
+    mintSy: vault.mintSy,
+    ptAmount: exponentOrderbook.amount("All"),
+    ytAmount: exponentOrderbook.amount("All"),
+    syAmount: exponentOrderbook.amount("All"),
+  });
+
+  tx = new Transaction().add(withdrawIx);
+  sig = await sendAndConfirmTransaction(connection, tx, [wallet.payer]);
+
+  console.log(`✓ Withdrew escrow balances. Signature: ${sig}`);
+
+  // -------------------------------------------------------------------
+  // Step 7 (Optional): Remove unfilled order
+  // -------------------------------------------------------------------
+
+  if (openOrders.length > 0) {
+    console.log("\nStep 7: Removing unfilled order...");
+
+    const removeOfferIx = await orderbook.ixWrapperRemoveOffer({
+      trader: user,
+      offerIdx: openOrders[0].offerIndex, // Remove first order
+      mintSy: vault.mintSy,
+    });
+
+    tx = new Transaction().add(removeOfferIx);
+    sig = await sendAndConfirmTransaction(connection, tx, [wallet.payer]);
+
+    console.log(`✓ Removed order. Signature: ${sig}`);
+  }
+
+  console.log("\n=== Example 2 Complete ===");
+}
+```
+
+**Key Takeaways:**
+- YT in orderbook SellYT offers continues to earn yield
+- Use `ixWrapperCollectInterest` to claim yield from orderbook
+- `getUserBalances` shows escrow balances separate from wallet balances
+- `getOpenOrders` returns all active orders for a user
+- Always withdraw escrow balances or remove orders to recover funds
+
+---
+
+## Example 3: Virtual Offers - Trade PT Directly on Orderbook
+
+This example demonstrates virtual offers, which enable PT ↔ SY trading without handling YT.
+
+```typescript
+async function example3_VirtualOffers() {
+  const user = wallet.publicKey;
+
+  console.log("=== Example 3: Virtual Offers (PT Trading) ===");
+
+  // -------------------------------------------------------------------
+  // Step 1: Post virtual SellYT offer (actually selling PT for SY)
+  // -------------------------------------------------------------------
+
+  console.log("Step 1: Posting virtual SellYT offer (sell PT for SY)...");
+
+  await vault.reload();
+  await orderbook.reload();
+
+  // Virtual SellYT:
+  // - User deposits SY
+  // - When matched, system strips SY → PT + YT
+  // - User receives PT, counter-party receives YT
+
+  const baseAmount = 1000_000000; // 1000 USDC worth
+
+  const { ix: virtualSellIx, setupIxs: virtualSellSetupIxs } = await orderbook.ixWrapperPostOffer({
+    trader: user,
+    amount: BigInt(baseAmount),
+    price: 0.12, // 12% implied APY
+    offerType: exponentOrderbook.OfferType.SellYt,
+    offerOption: exponentOrderbook.offerOptions("FillOrKill", [false]),
+    virtualOffer: true, // VIRTUAL = selling PT
+    expirySeconds: 86400 * 3, // 3 day expiry
+    mintSy: vault.mintSy,
+  });
+
+  let tx = new Transaction().add(...virtualSellSetupIxs, virtualSellIx);
+  let sig = await sendAndConfirmTransaction(connection, tx, [wallet.payer]);
+
+  console.log(`✓ Posted virtual SellYT offer. Signature: ${sig}`);
+  console.log(`  Deposited: 1000 USDC worth of SY`);
+  console.log(`  When filled: Receive PT, counter-party gets YT`);
+
+  // -------------------------------------------------------------------
+  // Step 2: Post virtual BuyYT offer (actually buying SY with PT)
+  // -------------------------------------------------------------------
+
+  console.log("\nStep 2: Posting virtual BuyYT offer (buy SY with PT)...");
+
+  // First, get some PT (strip SY)
+  const stripIx = vault.ixStrip({
+    depositor: user,
+    syIn: BigInt(500_000000),
+  });
+
+  tx = new Transaction().add(stripIx);
+  sig = await sendAndConfirmTransaction(connection, tx, [wallet.payer]);
+
+  console.log(`✓ Stripped 500 SY. Now have PT to trade.`);
+
+  await vault.reload();
+
+  // Virtual BuyYT:
+  // - User deposits PT
+  // - When matched, system merges PT + YT → SY
+  // - User receives SY, counter-party provides YT
+
+  const virtualBuyIx = orderbook.ixPostOffer({
+    trader: user,
+    price: 0.10, // 10% implied APY
+    amount: 500_000000n, // 500 PT
+    offerType: exponentOrderbook.OfferType.BuyYt,
+    offerOption: exponentOrderbook.offerOptions("FillOrKill", [false]),
+    virtualOffer: true, // VIRTUAL = buying SY
+    expirySeconds: 86400 * 3,
+    mintSy: vault.mintSy,
+  });
+
+  tx = new Transaction().add(virtualBuyIx);
+  sig = await sendAndConfirmTransaction(connection, tx, [wallet.payer]);
+
+  console.log(`✓ Posted virtual BuyYT offer. Signature: ${sig}`);
+  console.log(`  Deposited: 500 PT`);
+  console.log(`  When filled: Receive SY`);
+
+  // -------------------------------------------------------------------
+  // Step 3: Market order to fill virtual offer
+  // -------------------------------------------------------------------
+
+  console.log("\nStep 3: Executing market order to fill virtual offer...");
+
+  // Take the virtual SellYT offer (we receive PT)
+  const { ix: marketOfferIx, setupIxs: marketSetupIxs } = await orderbook.ixWrapperMarketOffer({
+    trader: user,
+    amount: BigInt(300_000000), // Buy 300 USDC worth
+    maxPriceApy: 0.13, // Max 13% APY
+    minAmountOut: BigInt(290_000000), // Min output
+    offerType: exponentOrderbook.OfferType.BuyYt, // We're buying YT (taking SellYT offers)
+    virtualOffer: false, // Our side is not virtual
+    mintSy: vault.mintSy,
+  });
+
+  tx = new Transaction().add(...marketSetupIxs, marketOfferIx);
+  sig = await sendAndConfirmTransaction(connection, tx, [wallet.payer]);
+
+  console.log(`✓ Market order executed. Signature: ${sig}`);
+  console.log(`  Filled virtual SellYT offers`);
+  console.log(`  Received: YT tokens (from stripped SY)`);
+
+  // -------------------------------------------------------------------
+  // Step 4: Check results
+  // -------------------------------------------------------------------
+
+  console.log("\nStep 4: Checking balances and open orders...");
+
+  await orderbook.reload();
+
+  const balances = orderbook.getUserBalances(user);
+  const openOrders = orderbook.getUserOpenOrders(user);
+
+  console.log(`Escrow Balances:`);
+  console.log(`  PT: ${balances.pt}`);
+  console.log(`  YT: ${balances.yt}`);
+  console.log(`  SY: ${balances.sy}`);
+
+  console.log(`\nOpen Virtual Offers: ${openOrders.filter(o => o.isVirtual).length}`);
+
+  console.log("\n=== Example 3 Complete ===");
+}
+```
+
+**Key Takeaways:**
+- Virtual `SellYT` = Sell PT for SY (deposit SY, receive PT when filled)
+- Virtual `BuyYT` = Buy SY with PT (deposit PT, receive SY when filled)
+- Virtual offers enable PT traders to avoid YT entirely
+- System automatically strips/merges to settle virtual trades
+- Virtual and non-virtual offers share same orderbook liquidity
+
+---
+
+## Example 4: CLMM Liquidity Provision
+
+This example shows how to provide concentrated liquidity and earn trading fees.
+
+```typescript
+async function example4_CLMMLiquidityProvision() {
+  const user = wallet.publicKey;
+
+  console.log("=== Example 4: CLMM Liquidity Provision ===");
+
+  // -------------------------------------------------------------------
+  // Step 1: Prepare assets (PT + SY)
+  // -------------------------------------------------------------------
+
+  console.log("Step 1: Preparing assets for liquidity provision...");
+
+  // Strip to get PT
+  const stripIx = vault.ixStrip({
+    depositor: user,
+    syIn: BigInt(10_000_000000), // 10,000 SY
+  });
+
+  let tx = new Transaction().add(stripIx);
+  let sig = await sendAndConfirmTransaction(connection, tx, [wallet.payer]);
+
+  console.log(`✓ Stripped 10,000 SY. Received 10,000 PT + 10,000 YT`);
+
+  // We need both PT and SY for LP
+  // Sell some YT to get SY back
+  await market.reload();
+
+  const { ixs: sellYtIxs, setupIxs: sellYtSetupIxs } = market.ixSellYt({
+    trader: user,
+    ytIn: BigInt(5_000_000000), // Sell 5000 YT
+    minSyOut: BigInt(100_000000), // Minimum 100 SY
+  });
+
+  tx = new Transaction().add(...sellYtSetupIxs, ...sellYtIxs);
+  sig = await sendAndConfirmTransaction(connection, tx, [wallet.payer]);
+
+  console.log(`✓ Sold 5000 YT for ~X SY`);
+
+  // -------------------------------------------------------------------
+  // Step 2: Determine tick range for concentrated liquidity
+  // -------------------------------------------------------------------
+
+  console.log("\nStep 2: Calculating optimal tick range...");
+
+  await market.reload();
+
+  const currentTick = market.state.currentTick;
+  const tickSpacing = market.state.tickSpacing;
+
+  console.log(`  Current Tick: ${currentTick}`);
+  console.log(`  Tick Spacing: ${tickSpacing}`);
+
+  // Concentrated range: ±10% around current price
+  // Tick formula: tick = log_1.0001(price)
+  // For ±10%: Δtick ≈ ±1000
+
+  const lowerTick = Math.floor((currentTick - 1000) / tickSpacing) * tickSpacing;
+  const upperTick = Math.floor((currentTick + 1000) / tickSpacing) * tickSpacing;
+
+  console.log(`  Range: [${lowerTick}, ${upperTick}]`);
+
+  // -------------------------------------------------------------------
+  // Step 3: Deposit liquidity
+  // -------------------------------------------------------------------
+
+  console.log("\nStep 3: Depositing liquidity to CLMM...");
+
+  const depositResult = market.ixDepositLiquidity({
+    depositor: user,
+    ptInIntent: BigInt(5_000_000000), // Intent to deposit 5000 PT
+    syInIntent: BigInt(5_000_000000), // Intent to deposit 5000 SY
+    lowerTickKey: lowerTick,
+    upperTickKey: upperTick,
+  });
+
+  tx = new Transaction().add(depositResult.ix);
+  sig = await sendAndConfirmTransaction(
+    connection,
+    tx,
+    [wallet.payer, depositResult.signers] // signers is the generated LP position keypair
+  );
+
+  const lpPositionPubkey = depositResult.signers.publicKey;
+
+  console.log(`✓ Deposited liquidity. Signature: ${sig}`);
+  console.log(`  LP Position: ${lpPositionPubkey.toString()}`);
+  console.log(`  Range: ${lowerTick} to ${upperTick}`);
+
+  // -------------------------------------------------------------------
+  // Step 4: Monitor position
+  // -------------------------------------------------------------------
+
+  console.log("\nStep 4: Monitoring LP position...");
+
+  await market.reload();
+
+  const { lpPositions } = await market.getUserLpPositions(user, market.selfAddress);
+
+  for (const positions of lpPositions) {
+    for (const pos of positions) {
+      console.log(`  Position: ${pos.publicKey.toBase58()}`);
+      console.log(`  LP Balance: ${pos.account.lpBalance}`);
+      console.log(`  Lower Tick: ${pos.account.lowerTickIdx}`);
+      console.log(`  Upper Tick: ${pos.account.upperTickIdx}`);
+
+      // Preview withdrawal amounts
+      const result = market.getPtAndSyOnWithdrawLiquidity(pos.account);
+      console.log(`  PT on withdraw: ${result.ptOut}`);
+      console.log(`  SY on withdraw: ${result.syOut}`);
+    }
+  }
+
+  // -------------------------------------------------------------------
+  // Step 5: Collect fees (optional)
+  // -------------------------------------------------------------------
+
+  console.log("\nStep 5: Collecting fees...");
+
+  // Fees are collected automatically when withdrawing liquidity
+  // Or can be collected separately via ixAddLiquidity with 0 amounts
+
+  const { ixs: collectIxs, setupIxs: collectSetupIxs } = await market.ixAddLiquidity({
+    owner: user,
+    lpPosition: lpPositionPubkey,
+    ptInIntent: 0n,
+    syInIntent: 0n,
+  });
+
+  tx = new Transaction().add(...collectSetupIxs, ...collectIxs);
+  sig = await sendAndConfirmTransaction(connection, tx, [wallet.payer]);
+
+  console.log(`✓ Collected fees. Signature: ${sig}`);
+
+  // -------------------------------------------------------------------
+  // Step 6: Withdraw liquidity
+  // -------------------------------------------------------------------
+
+  console.log("\nStep 6: Withdrawing liquidity...");
+
+  const withdrawLiquidityIx = market.ixWithdrawLiquidity({
+    withdrawer: user,
+    lpPosition: lpPositionPubkey,
+    lpIn: BigInt(5_000_000000), // LP tokens to burn
+    minPtOut: 0n, // Set appropriate slippage limits in production
+    minSyOut: 0n,
+  });
+
+  tx = new Transaction().add(withdrawLiquidityIx);
+  sig = await sendAndConfirmTransaction(connection, tx, [wallet.payer]);
+
+  console.log(`✓ Withdrew liquidity. Signature: ${sig}`);
+  console.log(`  Received: PT + SY + accrued fees`);
+
+  console.log("\n=== Example 4 Complete ===");
+}
+```
+
+**Key Takeaways:**
+- Concentrated liquidity requires choosing tick range
+- Tighter ranges = higher capital efficiency but more rebalancing
+- Fees accrue automatically when trades occur in range
+- Use `ixAddLiquidity` with 0 amounts to collect fees without depositing
+- LP positions are NFT-like accounts (unique per range)
+
+---
+
+## Common Patterns and Best Practices
+
+### Pattern 1: Atomic Multi-Instruction Transactions
+
+```typescript
+async function atomicStripAndSell() {
+  // Execute strip and sell in single transaction
+  const stripIx = vault.ixStrip({ depositor: user, syIn: 1000n });
+  const sellIx = market.ixSellPt({ trader: user, amountPt: 1000n, outConstraint: 950n });
+
+  const tx = new Transaction()
+    .add(stripIx)
+    .add(sellIx);
+
+  const sig = await sendAndConfirmTransaction(connection, tx, [wallet.payer]);
+
+  console.log(`Atomic strip + sell: ${sig}`);
+}
+```
+
+### Pattern 2: Slippage Protection
+
+```typescript
+async function buyPtWithSlippageProtection() {
+  const amountSy = BigInt(1000_000000);
+
+  // Set outConstraint based on your expected exchange rate and acceptable slippage.
+  // For example, if you expect ~1:1 PT/SY and tolerate 5% slippage:
+  const outConstraint = BigInt(Math.floor(1000_000000 * 0.95));
+
+  const buyIx = market.ixBuyPt({
+    trader: user,
+    amountSy,
+    outConstraint, // Transaction reverts if PT output is below this
+  });
+
+  const tx = new Transaction().add(buyIx);
+  const sig = await sendAndConfirmTransaction(connection, tx, [wallet.payer]);
+
+  console.log(`Buy PT with slippage protection: ${sig}`);
+}
+```
+
+### Pattern 3: Error Handling and Retries
+
+```typescript
+async function robustTransaction(ix: TransactionInstruction, maxRetries = 3) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const tx = new Transaction().add(ix);
+      const sig = await sendAndConfirmTransaction(
+        connection,
+        tx,
+        [wallet.payer],
+        { commitment: "confirmed", maxRetries: 0 }
+      );
+
+      console.log(`Success on attempt ${attempt + 1}: ${sig}`);
+      return sig;
+
+    } catch (error) {
+      console.error(`Attempt ${attempt + 1} failed:`, error.message);
+
+      if (attempt === maxRetries - 1) {
+        throw new Error(`Transaction failed after ${maxRetries} attempts`);
+      }
+
+      // Exponential backoff
+      await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt)));
+    }
+  }
+}
+```
+
+### Pattern 4: Checking Balance Before Operation
+
+```typescript
+import { getAccount } from "@solana/spl-token";
+
+async function ensureSufficientBalance() {
+  const userSyAta = getAssociatedTokenAddressSync(
+    vault.mintSy,
+    user,
+    true
+  );
+
+  const syAccount = await getAccount(connection, userSyAta);
+  const syBalance = syAccount.amount;
+
+  const requiredSy = BigInt(1000_000000);
+
+  if (syBalance < requiredSy) {
+    throw new Error(
+      `Insufficient SY balance. Have: ${syBalance}, Need: ${requiredSy}`
+    );
+  }
+
+  console.log(`✓ Sufficient balance: ${syBalance} SY`);
+}
+```
+
+### Pattern 5: Address Lookup Tables (ALTs)
+
+```typescript
+import { AddressLookupTableAccount } from "@solana/web3.js";
+
+async function useAddressLookupTable() {
+  // CLMM and Orderbook often require ALTs for CPI accounts
+
+  const altAddress = market.addressLookupTable;
+  const altAccount = await connection.getAddressLookupTable(altAddress);
+
+  if (!altAccount.value) {
+    throw new Error("Address Lookup Table not found");
+  }
+
+  const buyPtIx = market.ixBuyPt({
+    trader: user,
+    amountSy: 1000n,
+    outConstraint: 950n,
+  });
+
+  const messageV0 = new TransactionMessage({
+    payerKey: user,
+    recentBlockhash: (await connection.getLatestBlockhash()).blockhash,
+    instructions: [buyPtIx],
+  }).compileToV0Message([altAccount.value]);
+
+  const txV0 = new VersionedTransaction(messageV0);
+  txV0.sign([wallet.payer]);
+
+  const sig = await connection.sendTransaction(txV0);
+  await connection.confirmTransaction(sig);
+
+  console.log(`Transaction with ALT: ${sig}`);
+}
+```
+
+---
+
+## Testing and Debugging
+
+### Check Vault State
+
+```typescript
+async function inspectVaultState() {
+  await vault.reload();
+
+  console.log("Vault State:");
+  console.log(`  Mint SY: ${vault.mintSy.toString()}`);
+  console.log(`  Mint PT: ${vault.mintPt.toString()}`);
+  console.log(`  Mint YT: ${vault.mintYt.toString()}`);
+  console.log(`  Exchange Rate: ${vault.state.lastSeenSyExchangeRate}`);
+  console.log(`  PT Supply: ${vault.state.ptSupply.toString()}`);
+  console.log(`  YT Supply: ${vault.state.ytSupply.toString()}`);
+  console.log(`  Total SY Escrowed: ${vault.state.totalSyInEscrow.toString()}`);
+  console.log(`  SY for PT: ${vault.state.syForPt.toString()}`);
+  console.log(`  Expiration: ${new Date(vault.state.expirationTs * 1000).toISOString()}`);
+}
+```
+
+### Check Market State
+
+```typescript
+async function inspectMarketState() {
+  await market.reload();
+
+  console.log("Market State:");
+  console.log(`  Current Tick: ${market.state.currentTick}`);
+  console.log(`  Sqrt Price: ${market.state.sqrtPrice.toString()}`);
+  console.log(`  Liquidity: ${market.state.liquidity.toString()}`);
+  console.log(`  Fee Rate: ${market.state.feeRate}bp`);
+  console.log(`  PT Reserve: ${market.state.ptReserve.toString()}`);
+  console.log(`  SY Reserve: ${market.state.syReserve.toString()}`);
+}
+```
+
+### Simulate Transaction
+
+```typescript
+async function simulateBeforeSend(ix: TransactionInstruction) {
+  const tx = new Transaction().add(ix);
+  tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+  tx.feePayer = user;
+
+  const simulation = await connection.simulateTransaction(tx);
+
+  if (simulation.value.err) {
+    console.error("Simulation failed:", simulation.value.err);
+    console.error("Logs:", simulation.value.logs);
+    throw new Error("Transaction would fail");
+  }
+
+  console.log("✓ Simulation successful");
+  console.log(`  Compute units: ${simulation.value.unitsConsumed}`);
+
+  return simulation;
+}
+```
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Yield Stripping SDK" href="/yield-stripping/sdk-quickstart" icon="rocket">
+    Detailed SDK reference for vault operations
+  </Card>
+  <Card title="CLMM SDK" href="/clmm/sdk-quickstart" icon="chart-mixed">
+    Complete CLMM integration guide
+  </Card>
+  <Card title="Orderbook SDK" href="/orderbook/sdk-quickstart" icon="arrow-right-arrow-left">
+    Orderbook limit order documentation
+  </Card>
+  <Card title="Strip, Trade, and Redeem" href="/home/learn/token-lifecycle" icon="lightbulb">
+    Follow the full protocol flow with real SDK code
+  </Card>
+</CardGroup>

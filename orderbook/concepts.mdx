@@ -1,0 +1,114 @@
+---
+title: Concepts
+description: Orderbook-specific concepts — virtual offers, fee decay, interest accrual, escrows, and expiry
+---
+
+This page covers concepts specific to the Exponent Orderbook. For shared protocol concepts, see:
+
+- [Implied APY Pricing](/home/learn/pricing-and-math) — How PT and YT prices derive from implied APY
+- [PT: Principal Token](/home/learn/principal-token) — PT mechanics, backing, fixed-rate strategy
+- [YT: Yield Token](/home/learn/yield-token) — YT mechanics, yield formula, leverage
+- [Strip & Merge](/home/learn/token-lifecycle) — The SY → PT + YT and PT + YT → SY operations
+- [Maturity](/home/learn/maturity) — Before/at/after maturity behavior
+
+---
+
+## Virtual Offers
+
+The orderbook shares liquidity between PT and YT routes using atomic strip and merge operations. All orders are internally quoted in YT. When a trader wants to trade PT instead, their order is marked as "virtual" and the orderbook converts between PT and YT automatically.
+
+| Route   | `offerType`        | `virtualOffer` | Description        |
+| ------- | ------------------ | -------------- | ------------------ |
+| SY → YT | `OfferType.BuyYt`  | `false`        | Exchange SY for YT |
+| YT → SY | `OfferType.SellYt` | `false`        | Exchange YT for SY |
+| SY → PT | `OfferType.SellYt` | `true`         | Exchange SY for PT |
+| PT → SY | `OfferType.BuyYt`  | `true`         | Exchange PT for SY |
+
+See [Virtual Offers](/orderbook/virtual-offers) for the full strip/merge mechanics and SDK usage.
+
+---
+
+## Fee Decay
+
+The orderbook charges separate fees for makers and takers using a time-weighted decay model — fees decrease exponentially as the market approaches maturity, reaching zero at expiry. Makers (limit orders that add liquidity) always pay lower fees than takers (market orders that remove liquidity).
+
+| Time to Maturity | Maker Fee | Taker Fee |
+|-----------------|-----------|-----------|
+| 180 days | 5.0% | 8.0% |
+| 90 days | 2.5% | 4.5% |
+| 30 days | 1.0% | 2.0% |
+| 7 days | 0.3% | 0.7% |
+| At expiry | 0.0% | 0.0% |
+
+Fees are deducted from the output amount after matching.
+
+<Tip>
+Use `offerOptions("FillOrKill", [true])` to require the order to be filled completely or not at all. Pass `false` to allow partial fills.
+</Tip>
+
+See [Fee Decay Model](/home/learn/pricing-and-math#fee-decay-model) for the full formula.
+
+---
+
+## Interest Accrual
+
+<Warning>
+YT does not accrue interest while sitting in your wallet. It must be deposited into a sell order on the orderbook (or held via a filled buy order) for the protocol to track and distribute yield.
+</Warning>
+
+YT held in open orders continuously accrues yield. Interest is staged automatically during order fills and removals, and is claimable separately from trading balances.
+
+The interest earned uses the inverse rate delta:
+
+$$
+\text{interest} = \text{YT}_{\text{amount}} \times \left(\frac{1}{r_{\text{old}}} - \frac{1}{r_{\text{new}}}\right)
+$$
+
+For example: a user posts a SellYT order for 1,000 YT when the SY exchange rate is 1.00. The rate later rises to 1.05. The accrued interest is `1000 × (1/1.00 - 1/1.05) ≈ 47.6 SY`, claimable via [ixWrapperCollectInterest](/orderbook/typescript/instructions/ix-wrapper-collect-interest).
+
+---
+
+## Escrows
+
+Each trader has an escrow within the orderbook that tracks locked balances (PT, YT, SY) and staged interest. Tokens enter the escrow on order creation, shift between token types as orders fill, and can be withdrawn after removal.
+
+What each order type deposits and receives:
+
+| Order Type | Virtual | User Deposits | User Receives |
+|-----------|---------|---------------|---------------|
+| BuyYT | No | SY | YT |
+| BuyYT | Yes | PT | SY |
+| SellYT | No | YT | SY |
+| SellYT | Yes | SY | PT |
+
+Withdraw trading balances (PT, YT, SY) with [ixWrapperWithdrawFunds](/orderbook/typescript/instructions/ix-wrapper-withdraw-funds). Collect staged interest separately with [ixWrapperCollectInterest](/orderbook/typescript/instructions/ix-wrapper-collect-interest).
+
+---
+
+## Offer Expiry
+
+All offers have time-based expiration specified in seconds at creation, capped at vault maturity. Expired offers are automatically skipped during matching — no action is required from the trader.
+
+After vault maturity:
+
+- **New offers are rejected** — `postOffer` reverts
+- **Existing offers can be removed** — locked balances remain withdrawable
+- **Matching is disabled** — `marketOffer` also reverts
+- **Exchange rate freezes** — uses the vault's final SY exchange rate
+
+<Note>
+Anyone can batch-remove expired offers via `ixRemoveExpiredOffers` to free up orderbook capacity.
+</Note>
+
+---
+
+## Key Accounts
+
+The **Orderbook** account is the on-chain state holding all active offers, price levels, and user escrows. Each orderbook is tied to a single vault.
+
+Capacity limits: **100** price levels, **500** active orders, **250** unique traders.
+
+<CardGroup cols={2}>
+  <Card title="Orderbook Account" href="/orderbook/account-references/orderbook" />
+  <Card title="Offer Account" href="/orderbook/account-references/offer" />
+</CardGroup>

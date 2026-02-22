@@ -1,0 +1,74 @@
+---
+title: Exponent Developer Docs
+description: SDKs and developer tools for the Exponent protocol on Solana
+---
+
+# Exponent Protocol
+
+**Exponent** is a decentralized protocol on Solana that enables yield trading through yield stripping — the decomposition of yield-bearing assets into **Principal Tokens (PT)** and **Yield Tokens (YT)**.
+
+## What is Exponent?
+
+Exponent provides infrastructure for sophisticated yield strategies by separating yield-bearing assets into two tradeable components:
+
+- **PT (Principal Token)**: Fixed-income exposure with guaranteed redemption value at maturity
+- **YT (Yield Token)**: Pure yield exposure that captures all interest and rewards above the PT redemption rate
+
+## Understanding Exponent
+
+<CardGroup cols={2}>
+  <Card
+    title="Strip, Trade, and Redeem"
+    icon="lightbulb"
+    href="/home/learn/token-lifecycle"
+  >
+    Follow 1,000 USDC through the full Exponent flow with real SDK code.
+  </Card>
+  <Card
+    title="Architecture"
+    icon="diagram-project"
+    href="/home/learn/architecture"
+  >
+    Explore the Solana programs, dependencies, and how the system is built.
+  </Card>
+  <Card
+    title="Choosing Your SDK"
+    icon="route"
+    href="/home/choosing-a-protocol"
+  >
+    Decision guide to help you choose between Yield Stripping, CLMM, and Orderbook.
+  </Card>
+  <Card
+    title="Integration Guide"
+    icon="code"
+    href="/home/integration-guide"
+  >
+    Production-ready code examples showing how to integrate with Exponent.
+  </Card>
+</CardGroup>
+
+## SDKs
+
+<CardGroup cols={3}>
+  <Card
+    title="Yield Stripping"
+    icon="scissors"
+    href="/yield-stripping/overview"
+  >
+    Split yield-bearing assets into PT and YT for fixed-rate and leveraged yield strategies.
+  </Card>
+  <Card
+    title="Orderbook"
+    icon="arrow-right-arrow-left"
+    href="/orderbook/overview"
+  >
+    Limit order book for PT and YT with implied APY pricing and shared liquidity via virtual offers.
+  </Card>
+  <Card
+    title="CLMM"
+    icon="chart-mixed"
+    href="/clmm/overview"
+  >
+    Concentrated liquidity market maker for capital-efficient trading across custom APY ranges.
+  </Card>
+</CardGroup>

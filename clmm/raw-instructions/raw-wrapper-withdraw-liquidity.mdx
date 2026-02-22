@@ -1,0 +1,53 @@
+---
+title: Wrapper Withdraw Liquidity
+description: Low-level instruction to withdraw liquidity and convert to base assets
+---
+
+# createWrapperWithdrawLiquidityInstruction
+
+Withdraws liquidity from a CLMM market and converts the proceeds to base assets in a single atomic operation. This instruction removes the LP position, sells the PT component for SY on the market, and then redeems all SY for the underlying base asset. The caller receives base tokens directly.
+
+## Usage
+
+```typescript
+import { createWrapperWithdrawLiquidityInstruction } from "@exponent-labs/exponent-clmm-client";
+import { PublicKey, SystemProgram } from "@solana/web3.js";
+
+const ix = createWrapperWithdrawLiquidityInstruction({
+  withdrawer: withdrawerKeypair.publicKey,
+  market: new PublicKey("market..."),
+  ticks: new PublicKey("ticks..."),
+  tokenPtEscrow: new PublicKey("tokenPtEscrow..."),
+  tokenSyEscrow: new PublicKey("tokenSyEscrow..."),
+  tokenSyWithdrawer: new PublicKey("tokenSyWithdrawer..."),
+  tokenPtWithdrawer: new PublicKey("tokenPtWithdrawer..."),
+  tokenProgram: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
+  marketAddressLookupTable: new PublicKey("lookupTable..."),
+  syProgram: new PublicKey("syProgram..."),
+  tokenFeeTreasurySy: new PublicKey("tokenFeeTreasurySy..."),
+  tokenFeeTreasuryPt: new PublicKey("tokenFeeTreasuryPt..."),
+  lpPosition: new PublicKey("lpPosition..."),
+  systemProgram: SystemProgram.programId,
+  eventAuthority: new PublicKey("eventAuthority..."),
+  program: new PublicKey("program..."),
+  amountLp: 1_000_000n,
+  syConstraint: 600_000n,
+  redeemSyAccountsLength: 3,
+});
+```
+
+## Accounts
+
+This instruction uses the [Liquidity Accounts](/clmm/raw-instructions/common-accounts#liquidity-accounts).
+
+## Args
+
+| Name | Type | Description |
+|------|------|-------------|
+| amountLp | `u64` | The amount of LP tokens to withdraw |
+| syConstraint | `u64` | The maximum amount of SY to use when selling PT |
+| redeemSyAccountsLength | `u8` | The number of CPI remaining accounts used for SY redemption |
+
+## Returns
+
+`TransactionInstruction` — a Solana transaction instruction ready to be added to a transaction.

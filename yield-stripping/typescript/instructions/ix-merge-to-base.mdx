@@ -1,0 +1,51 @@
+---
+title: Merge
+description: Merge PT and YT into the base asset
+---
+
+The `ixMergeToBase` method on the `Vault` class creates transaction instructions that merge PT and YT back into SY and then unwrap the SY into the base asset in a single atomic operation.
+
+## Usage
+
+```typescript
+import { Vault, LOCAL_ENV } from "@exponent-labs/exponent-sdk";
+import { Connection, PublicKey, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
+
+const connection = new Connection("https://api.mainnet-beta.solana.com");
+const vault = await Vault.load(LOCAL_ENV, connection, vaultAddress);
+
+const { ixs, setupIxs } = await vault.ixMergeToBase({
+  owner: wallet.publicKey,
+  amountPy: 1_000_000_000n,
+});
+
+const tx = new Transaction().add(...setupIxs, ...ixs);
+const signature = await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+<Tip>
+  This method returns both `setupIxs` (token account creation) and `ixs` (the merge + unwrap instructions, including any pre/post instructions from the flavor). Make sure to include both in your transaction.
+</Tip>
+
+## Required Parameters
+
+| Parameter  | Type        | Description                         |
+| ---------- | ----------- | ----------------------------------- |
+| `owner`    | `PublicKey`  | The owner's wallet public key       |
+| `amountPy` | `bigint`    | Amount of PT and YT to merge        |
+
+## Optional Parameters
+
+| Parameter | Type        | Description                                                    |
+| --------- | ----------- | -------------------------------------------------------------- |
+| `ptSrc`   | `PublicKey`  | Source PT token account. Defaults to owner's ATA               |
+| `ytSrc`   | `PublicKey`  | Source YT token account. Defaults to owner's ATA               |
+| `syDst`   | `PublicKey`  | Intermediate SY token account. Defaults to owner's ATA         |
+| `baseDst` | `PublicKey`  | Destination base token account                                 |
+
+## Returns
+
+Returns a `Promise<{ ixs: TransactionInstruction[]; setupIxs: TransactionInstruction[] }>`:
+
+- `ixs` — The merge and unwrap instructions, including any flavor-specific pre/post instructions
+- `setupIxs` — Setup instructions that create associated token accounts for SY, PT, and YT

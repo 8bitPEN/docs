@@ -1,0 +1,53 @@
+---
+title: Buy PT
+description: Low-level instruction to buy PT tokens using base assets
+---
+
+# createBuyPtInstruction
+
+Builds a raw instruction to buy PT tokens using base assets. This instruction handles SY minting from the base asset internally via remaining accounts, making it a convenience wrapper that combines the mint-SY and buy-PT steps into a single instruction.
+
+## Usage
+
+```typescript
+import { createBuyPtInstruction } from "@exponent-labs/exponent-clmm-client";
+import { PublicKey, SystemProgram } from "@solana/web3.js";
+
+const ix = createBuyPtInstruction({
+  buyer: buyerKeypair.publicKey,
+  market: marketAddress,
+  tokenSyTrader: buyerSyTokenAccount,
+  tokenPtTrader: buyerPtTokenAccount,
+  tokenSyEscrow: marketSyEscrow,
+  tokenPtEscrow: marketPtEscrow,
+  addressLookupTable: lookupTableAddress,
+  tokenProgram: tokenProgramId,
+  syProgram: syProgramId,
+  ticks: ticksAccount,
+  tokenFeeTreasurySy: feeTreasurySyAccount,
+  tokenFeeTreasuryPt: feeTreasuryPtAccount,
+  eventAuthority: eventAuthorityPda,
+  program: clmmProgramId,
+  minPtAmount: 900_000_000n,
+  baseAmount: 1_000_000_000n,
+  priceSpotLimit: 1.05,
+  mintSyRemAccountsUntil: 5,
+});
+```
+
+## Accounts
+
+This instruction uses the [PT Swap Accounts](/clmm/raw-instructions/common-accounts#pt-swap-accounts).
+
+## Args
+
+| Name | Type | Description |
+|------|------|-------------|
+| `minPtAmount` | `u64` | Minimum amount of PT tokens to receive |
+| `baseAmount` | `u64` | Amount of base asset to spend |
+| `priceSpotLimit` | `f64` (optional) | Price limit for anti-sandwich protection |
+| `mintSyRemAccountsUntil` | `u8` | Number of remaining accounts used for the SY minting CPI |
+
+## Returns
+
+`TransactionInstruction` — a Solana transaction instruction ready to be added to a transaction.

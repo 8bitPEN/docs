@@ -1,0 +1,81 @@
+---
+title: "Pricing & Math"
+description: "How PT and YT prices are derived from implied APY, and the key formulas behind the protocol"
+---
+
+This page covers the formulas that drive PT/YT pricing across Exponent. You don't need to implement any of this yourself — the SDK handles all calculations — but understanding the relationships helps when evaluating positions.
+
+## The Core Invariant
+
+The value of one [PT](/home/learn/principal-token) plus one [YT](/home/learn/yield-token) always equals the value of one [SY](/home/learn/standardized-yield):
+
+$$
+P_{PT} + P_{YT} = P_{SY}
+$$
+
+This is the foundation of the entire system. If market prices diverge from this relationship, arbitrage restores the balance (see [below](#arbitrage)).
+
+## PT Price & Implied APY
+
+[PT](/home/learn/principal-token) trades at a discount to face value. The size of that discount is your fixed return — and the market expresses it as an **implied APY** using continuous compounding:
+
+$$
+P_{PT} = e^{-\text{APY} \times t}
+$$
+
+Where $t$ is time to maturity as a fraction of a year. Higher implied APY means a bigger discount on PT — and a higher fixed return for the buyer.
+
+| Implied APY | 180 days to maturity | 90 days | 30 days |
+|:-----------:|:--------------------:|:-------:|:-------:|
+| 5% | 0.9753 | 0.9876 | 0.9959 |
+| 10% | 0.9512 | 0.9753 | 0.9918 |
+| 20% | 0.9048 | 0.9512 | 0.9836 |
+
+This works in both directions — given a PT price from the market, you can derive the implied APY: $\text{APY} = -\ln(P_{PT}) / t$.
+
+A quick way to estimate your annualized return without the exponential math: $\frac{1 - P_{PT}}{P_{PT}} \times \frac{365}{d}$. For moderate rates and short durations both methods give nearly the same number — they only diverge meaningfully at high APYs or long maturities.
+
+When PT is priced against SY rather than the base asset, divide by the [exchange rate](/home/learn/standardized-yield#the-exchange-rate): $P_{PT}^{SY} = P_{PT} / r$. Because SY appreciates over time, PT always appears cheaper in SY terms.
+
+## YT Pricing & Leverage
+
+[YT](/home/learn/yield-token) price is the complement of PT, adjusted by the [exchange rate](/home/learn/standardized-yield#the-exchange-rate):
+
+$$
+P_{YT} = \frac{1 - P_{PT}}{r}
+$$
+
+Because YT costs a fraction of the full asset, it creates inherent leverage on yield. The leverage multiplier is simply $1 / P_{YT}$:
+
+| PT Price | YT Price (rate 1.05) | Yield Leverage |
+|:--------:|:--------------------:|:--------------:|
+| 0.90 | 0.0952 | ~10x |
+| 0.95 | 0.0476 | ~21x |
+| 0.98 | 0.0190 | ~53x |
+
+As maturity approaches, PT converges to 1.00 and YT converges to 0 — this is **time decay**. YT loses value over time even if the underlying rate hasn't changed, because less time remains to earn yield.
+
+## How Yield Accrues
+
+YT holders earn yield based on the growth of the [exchange rate](/home/learn/standardized-yield#the-exchange-rate) since their position was created. The larger the rate increase, the more SY becomes claimable. Yield accrues continuously and can be collected at any time — you don't have to wait for maturity.
+
+After a vault matures, the exchange rate is frozen. Any further appreciation in the underlying protocol does not affect YT yield.
+
+## Fee Decay Model
+
+Both the CLMM and Orderbook use a time-weighted fee model. Fees are highest far from maturity and decay toward zero as the vault approaches expiration:
+
+$$
+\text{fee\_rate} = e^{\text{ln\_fee\_rate\_root} \times \tau}
+$$
+
+Where $\tau$ is the normalized time remaining (0 at maturity, 1 at one year out). This reflects the decreasing price uncertainty of PT as it nears redemption — closer to maturity means less risk, so lower fees. The protocol also takes a treasury cut from each trade.
+
+## Arbitrage
+
+When market prices diverge from the [core invariant](#the-core-invariant), arbitrage opportunities emerge:
+
+- **PT + YT < SY** — buy PT and YT on the market, merge them into SY, sell the SY for profit
+- **PT + YT > SY** — buy SY, strip it into PT and YT, sell both on the market for profit
+
+These forces keep PT, YT, and SY prices aligned. Cross-venue arbitrage also exists: if the CLMM and Orderbook show different implied APYs for the same vault, you can buy on one and sell on the other to capture the spread.

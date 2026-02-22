@@ -1,0 +1,82 @@
+---
+title: Get Yield Position
+description: Load and read a user's yield position
+---
+
+The `YtPosition` class represents a user's yield position for a specific vault. It tracks deposited YT balance, accrued interest, and emission rewards.
+
+## Loading a Position
+
+### By address
+
+```typescript
+import { YtPosition, Vault, LOCAL_ENV } from "@exponent-labs/exponent-sdk";
+import { Connection, PublicKey } from "@solana/web3.js";
+
+const connection = new Connection("https://api.mainnet-beta.solana.com");
+const vault = await Vault.load(LOCAL_ENV, connection, vaultAddress);
+
+const ytPosition = await YtPosition.load(LOCAL_ENV, connection, positionAddress, vault);
+```
+
+### By owner
+
+```typescript
+const ytPosition = await YtPosition.loadByOwner(
+  LOCAL_ENV,
+  connection,
+  wallet.publicKey,
+  vault,
+);
+```
+
+### Multiple positions for one owner
+
+```typescript
+const vaultAddresses = [vaultAddress1, vaultAddress2, vaultAddress3];
+
+const positions = await YtPosition.loadAllByOwner(
+  LOCAL_ENV,
+  connection,
+  wallet.publicKey,
+  vaultAddresses,
+);
+```
+
+## Reading Position State
+
+```typescript
+console.log("YT balance:", ytPosition.ytBalance);
+console.log("Owner:", ytPosition.owner.toBase58());
+console.log("Staged interest:", ytPosition.stagedInterest);
+```
+
+## Available Properties
+
+| Property          | Type        | Description                                       |
+| ----------------- | ----------- | ------------------------------------------------- |
+| `ytBalance`       | `bigint`    | Amount of YT deposited in the position            |
+| `owner`           | `PublicKey`  | Owner of the yield position                      |
+| `stagedInterest`  | `bigint`    | Interest that has been staged for collection      |
+| `selfAddress`     | `PublicKey`  | The yield position PDA address                   |
+| `vault`           | `Vault`     | The associated vault instance                     |
+
+## Refreshing State
+
+```typescript
+await ytPosition.reload(connection);
+```
+
+## Serialization
+
+```typescript
+const json = ytPosition.toJson();
+```
+
+Returns a `YtPositionJson` object with:
+- `owner` — Owner public key as string
+- `ytBalance` — YT balance as string
+- `interest` — Interest tracker with `lastSeenIndex` and `staged`
+- `claimableInterest` — Calculated claimable interest amount
+- `emissions` — Array of emission trackers
+- `vault` — Serialized vault state

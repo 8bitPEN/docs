@@ -1,0 +1,51 @@
+---
+title: Withdraw Liquidity
+description: Low-level instruction to withdraw liquidity from an LP position
+---
+
+# createWithdrawLiquidityInstruction
+
+Builds a raw instruction to withdraw liquidity from an LP position and claim accumulated fees. This removes a specified amount of liquidity from the position, returning PT and SY tokens to the owner along with any accrued trading fees.
+
+## Usage
+
+```typescript
+import { createWithdrawLiquidityInstruction } from "@exponent-labs/exponent-clmm-client";
+import { PublicKey, SystemProgram } from "@solana/web3.js";
+
+const ix = createWithdrawLiquidityInstruction({
+  owner: ownerKeypair.publicKey,
+  market: marketAddress,
+  lpPosition: lpPositionAccount,
+  ticks: ticksAccount,
+  tokenPtDst: ownerPtTokenAccount,
+  tokenSyDst: ownerSyTokenAccount,
+  tokenPtEscrow: marketPtEscrow,
+  tokenSyEscrow: marketSyEscrow,
+  addressLookupTable: lookupTableAddress,
+  tokenProgram: tokenProgramId,
+  syProgram: syProgramId,
+  systemProgram: SystemProgram.programId,
+  eventAuthority: eventAuthorityPda,
+  program: clmmProgramId,
+  liquidityToRemove: 500_000_000n,
+  minPtOut: 200_000_000n,
+  minSyOut: 200_000_000n,
+});
+```
+
+## Accounts
+
+This instruction uses the [Liquidity Accounts](/clmm/raw-instructions/common-accounts#liquidity-accounts).
+
+## Args
+
+| Name | Type | Description |
+|------|------|-------------|
+| `liquidityToRemove` | `u64` | Amount of LP tokens to withdraw |
+| `minPtOut` | `u64` | Minimum PT tokens to receive |
+| `minSyOut` | `u64` | Minimum SY tokens to receive |
+
+## Returns
+
+`TransactionInstruction` — a Solana transaction instruction ready to be added to a transaction.

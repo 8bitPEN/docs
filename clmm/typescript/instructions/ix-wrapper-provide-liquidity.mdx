@@ -1,0 +1,65 @@
+---
+title: Provide Liquidity
+description: Provide liquidity from base assets and receive YT and LP tokens
+---
+
+The `ixWrapperProvideLiquidity` method on the `MarketThree` class provides liquidity to the CLMM pool using base assets. It wraps the base into SY, strips SY into PT and YT, adds liquidity with the PT, and returns YT and LP tokens to the depositor in a single atomic operation.
+
+## Usage
+
+```typescript
+import { MarketThree, LOCAL_ENV } from "@exponent-labs/exponent-sdk";
+import { Connection, PublicKey, Transaction, sendAndConfirmTransaction, Keypair } from "@solana/web3.js";
+
+const connection = new Connection("https://api.mainnet-beta.solana.com");
+const market = await MarketThree.load(LOCAL_ENV, connection, marketAddress);
+
+const { ixs, setupIxs, signers } = await market.ixWrapperProvideLiquidity({
+  depositor: wallet.publicKey,
+  amountBase: 10_000_000_000n,
+  minLpOut: 9_000_000_000n,
+  lowerTickApy: 0.05,  // 5% APY
+  upperTickApy: 0.15,  // 15% APY
+});
+
+const tx = new Transaction().add(...setupIxs, ...ixs);
+const signature = await sendAndConfirmTransaction(connection, tx, [wallet, ...signers]);
+```
+
+<Tip>
+  This is an async method because it needs to construct the SY minting accounts and YT deposit accounts from the market's configuration.
+</Tip>
+
+## Required Parameters
+
+| Parameter       | Type        | Description                                    |
+| --------------- | ----------- | ---------------------------------------------- |
+| `depositor`     | `PublicKey` | The depositor's wallet public key              |
+| `amountBase`    | `bigint`    | Amount of base asset to provide                |
+| `minLpOut`      | `bigint`    | Minimum amount of LP tokens to receive         |
+| `lowerTickApy`  | `number`    | Lower bound APY for the liquidity range        |
+| `upperTickApy`  | `number`    | Upper bound APY for the liquidity range        |
+
+## Optional Parameters
+
+| Parameter            | Type                         | Description                                                    |
+| -------------------- | ---------------------------- | -------------------------------------------------------------- |
+| `tokenSyDepositor`   | `PublicKey`                  | Intermediate SY token account. Defaults to depositor's ATA     |
+| `tokenYtDepositor`   | `PublicKey`                  | Destination YT token account. Defaults to depositor's ATA      |
+| `tokenPtDepositor`   | `PublicKey`                  | Intermediate PT token account. Defaults to depositor's ATA     |
+| `tokenBaseDepositor` | `PublicKey`                  | Source base token account. Defaults to depositor's ATA         |
+| `lpPosition`         | `Keypair` \| `PublicKey`     | LP position account. Defaults to a generated Keypair           |
+
+## Returns
+
+Returns a `Promise<PreparedInstruction>` with the following structure:
+
+```typescript
+{
+  ixs: TransactionInstruction[],      // Main instructions to execute
+  setupIxs: TransactionInstruction[], // Setup instructions for creating ATAs
+  signers?: Keypair[]                 // Optional signers (lpPosition if generated)
+}
+```
+
+The `setupIxs` array contains instructions to create the necessary associated token accounts (ATAs) for SY, YT, and PT tokens. The `ixs` array contains the flavor pre-instructions, the provide liquidity instruction, and the flavor post-instructions. If `lpPosition` was not provided, `signers` will contain the generated LP position keypair.

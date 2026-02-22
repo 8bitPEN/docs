@@ -1,0 +1,243 @@
+---
+title: MarketThree
+description: On-chain MarketThree account structure and fields
+---
+
+The MarketThree account stores all state for a CLMM (Concentrated Liquidity Market Maker) market, including token mints, escrow accounts, tick-based liquidity configuration, market financials, and LP farm emissions.
+
+## Status Flags
+
+```rust
+const STATUS_CAN_DEPOSIT_LIQUIDITY: u8  = 0b0000_0001;  // 1
+const STATUS_CAN_WITHDRAW_LIQUIDITY: u8 = 0b0000_0010;  // 2
+const STATUS_CAN_BUY_PT: u8             = 0b0000_0100;  // 4
+const STATUS_CAN_SELL_PT: u8            = 0b0000_1000;  // 8
+const STATUS_CAN_BUY_YT: u8             = 0b0001_0000;  // 16
+const STATUS_CAN_SELL_YT: u8            = 0b0010_0000;  // 32
+```
+
+## MarketThree
+
+```rust
+pub struct MarketThree {
+    /// Admin authority for the market
+    pub admin: Pubkey,
+
+    /// Address lookup table for the market
+    pub address_lookup_table: Pubkey,
+
+    /// Mint of the vault's PT token
+    pub mint_pt: Pubkey,
+
+    /// Mint of the SY program's SY token
+    pub mint_sy: Pubkey,
+
+    /// Mint of the vault's YT token
+    pub mint_yt: Pubkey,
+
+    /// Link to yield-stripping vault
+    pub vault: Pubkey,
+
+    /// Token account that holds PT liquidity
+    pub token_pt_escrow: Pubkey,
+
+    /// Pass-through token account for SY moving from the depositor to the SY program
+    pub token_sy_escrow: Pubkey,
+
+    /// Pass-through token account for YT moving from the depositor to the core program
+    pub token_yt_escrow: Pubkey,
+
+    /// Token account that holds SY fees from trade
+    pub token_fee_treasury_sy: Pubkey,
+
+    /// Token account that holds PT fees from trade
+    pub token_fee_treasury_pt: Pubkey,
+
+    /// Authority for CPI calls owned by the market struct
+    pub self_address: Pubkey,
+
+    /// Pubkey tick array account
+    pub ticks: Pubkey,
+
+    /// Bump for signing the PDA
+    pub signer_bump: [u8; 1],
+
+    /// Status flags bitmask
+    pub status_flags: u8,
+
+    /// Link to the SY program ID
+    pub sy_program: Pubkey,
+
+    /// Link to the exponent_core program ID
+    pub exponent_core_program: Pubkey,
+
+    /// Market configuration options
+    pub configuration_options: ConfigurationOptions,
+
+    /// Financial parameters and balances
+    pub financials: MarketFinancials,
+
+    /// Emission tracking for the market
+    pub emissions: MarketEmissions,
+
+    /// LP farm emission configuration
+    pub lp_farm: LpFarm,
+
+    /// Record of CPI accounts for SY program
+    pub cpi_sy_accounts: CpiAccounts,
+
+    /// Record of CPI core accounts
+    pub cpi_core_accounts: CpiCoreAccounts,
+
+    /// Flag indicating if currently in a flash swap
+    pub is_current_flash_swap: bool,
+
+    /// Liquidity net balance limits for rate limiting
+    pub liquidity_net_balance_limits: LiquidityNetBalanceLimits,
+
+    /// Unique seed id for the market
+    pub seed_id: [u8; 1],
+}
+```
+
+## ConfigurationOptions
+
+Configuration parameters for market behavior and fees.
+
+```rust
+pub struct ConfigurationOptions {
+    /// Initial log of fee rate, which decreases over time
+    pub ln_fee_rate_root: f64,
+
+    /// Protocol fee cut in basis points
+    pub treasury_fee_bps: u16,
+
+    /// Minimum amount of LP tokens to be issued
+    pub min_lp_tick_amount: u64,
+
+    /// Minimum denomination for reinvest liquidity
+    pub epsilon_clamp: f64,
+
+    /// Maximum total LP supply allowed
+    pub max_lp_supply: u64,
+
+    /// Spacing between ticks
+    pub tick_space: u32,
+}
+```
+
+## MarketFinancials
+
+Financial parameters tracking token balances and expiration.
+
+```rust
+pub struct MarketFinancials {
+    /// Expiration timestamp, copied from the vault associated with the PT
+    pub expiration_ts: u32,
+
+    /// Balance of PT in the market
+    /// Tracked separately to prevent bugs from direct token transfers
+    pub pt_balance: u64,
+
+    /// Balance of SY in the market
+    /// Tracked separately to prevent bugs from direct token transfers
+    pub sy_balance: u64,
+
+    /// Total balance of liquidity in the market
+    pub liquidity_balance: u64,
+}
+```
+
+## LiquidityNetBalanceLimits
+
+Rate limiting configuration to prevent rapid liquidity changes.
+
+```rust
+pub struct LiquidityNetBalanceLimits {
+    /// Start timestamp of the current rate limit window
+    pub window_start_timestamp: u32,
+
+    /// Net balance at the start of the window
+    pub window_start_net_balance: u64,
+
+    /// Maximum allowed negative change in basis points (10000 = 100%)
+    pub max_net_balance_change_negative_percentage: u16,
+
+    /// Maximum allowed positive change in basis points (10000 = 100%)
+    /// Using u32 to allow for very large increases (up to ~429,496%)
+    pub max_net_balance_change_positive_percentage: u32,
+
+    /// Duration of each rate limit window in seconds
+    pub window_duration_seconds: u32,
+}
+```
+
+## Tick Node Structure
+
+Ticks are stored in a red-black tree (`RedBlackTree<u32, Tick, 100>`) with a maximum of 100 active nodes. Each node stores:
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `fee_growth_outside_pt` | `u128` | Fee growth on the "outside" of this tick (PT, Q64.64) |
+| `fee_growth_outside_sy` | `u128` | Fee growth on the "outside" of this tick (SY, Q64.64) |
+| `liquidity_net` | `i64` | Net liquidity change at this boundary (+L at lower, −L at upper) |
+| `liquidity_gross` | `u64` | Accumulated absolute liquidity touches |
+| `spot_price` | `f64` | Precomputed $e^{\ln(1 + \text{apy})}$ for this tick |
+| `principal_pt` | `u64` | PT fee principal for this tick interval |
+| `principal_sy` | `u64` | SY fee principal for this tick interval |
+| `principal_share_supply` | `u64` | LP share supply for emission tracking |
+
+## Fee Growth Tracking
+
+Fee accumulation uses **Q64.64 fixed-point** arithmetic. Two global counters track accumulated fees per unit of liquidity:
+
+- `fee_growth_index_global_pt` (`u128`) — global PT fee growth per unit L
+- `fee_growth_index_global_sy` (`u128`) — global SY fee growth per unit L
+
+Each tick stores `fee_growth_outside_pt` and `fee_growth_outside_sy`. When the price crosses a tick boundary, the "outside" values are flipped:
+
+```
+fee_growth_outside := fee_growth_global - fee_growth_outside
+```
+
+This enables efficient calculation of fees earned within any tick range using the standard Uniswap V3 fee accounting formula.
+
+## MarketEmissions
+
+Separate from farm emissions, `MarketEmissions` tracks yield that flows from the underlying SY program into the market.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `token_escrow` | `Pubkey` | Escrow account receiving emissions from the SY program |
+| `lp_share_index` | `Number` | Index for distributing emissions proportionally to LP shares |
+| `last_seen_staged` | `u64` | Difference between staged and collected amounts |
+
+Market emissions flow through the principal share system — each tick interval's share of emissions is proportional to its `principal_share_supply` relative to the total.
+
+## Key Concepts
+
+### Market Status
+
+The `status_flags` field is a bitmask controlling which operations are permitted on the market:
+- **Deposit Liquidity** (0x01) — LPs can deposit into the market
+- **Withdraw Liquidity** (0x02) — LPs can withdraw from the market
+- **Buy PT** (0x04) — Users can buy PT tokens
+- **Sell PT** (0x08) — Users can sell PT tokens
+- **Buy YT** (0x10) — Users can buy YT tokens
+- **Sell YT** (0x20) — Users can sell YT tokens
+
+### Treasury Fees
+
+The market collects fees on trades, with a portion going to the protocol treasury as defined by `treasury_fee_bps`. Fee rates dynamically adjust based on the [time-weighted fee decay model](/home/learn/pricing-and-math#fee-decay-model).
+
+### Rate Limiting
+
+The `liquidity_net_balance_limits` field protects against rapid liquidity changes that could destabilize the market. It tracks net balance changes within time windows and enforces maximum percentage changes.
+
+### Market Lifecycle
+
+A market is **active** when the current timestamp is before `financials.expiration_ts`. After expiration, PT becomes redeemable 1:1 for the underlying asset, and certain operations may be restricted based on the vault's maturity state.
+
+### Escrow Accounts
+
+The market maintains separate escrow accounts for PT, SY, and YT tokens. The treasury fee accounts (`token_fee_treasury_sy` and `token_fee_treasury_pt`) are separate from the escrow accounts and collect the protocol's share of swap fees.

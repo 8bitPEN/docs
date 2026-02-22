@@ -1,0 +1,68 @@
+---
+title: Merge
+description: Low-level instruction to merge PT and YT back into SY
+---
+
+# createMergeInstruction
+
+Builds a raw instruction to merge equal amounts of PT (Principal Token) and YT (Yield Token) back into SY tokens.
+
+## Usage
+
+```typescript
+import { createMergeInstruction } from "@exponent-labs/exponent-core-client";
+import { PublicKey } from "@solana/web3.js";
+
+const ix = createMergeInstruction(
+  {
+    owner: wallet.publicKey,
+    authority: vaultAuthority,
+    vault: vaultAddress,
+    syDst: userSyTokenAccount,
+    escrowSy: vaultEscrowSy,
+    ytSrc: userYtTokenAccount,
+    ptSrc: userPtTokenAccount,
+    mintYt: ytMint,
+    mintPt: ptMint,
+    tokenProgram: TOKEN_PROGRAM_ID,
+    syProgram: syProgramId,
+    addressLookupTable: vaultLookupTable,
+    yieldPosition: vaultYieldPosition,
+    eventAuthority: eventAuthorityPda,
+    program: EXPONENT_CORE_PROGRAM_ID,
+  },
+  {
+    amount: BigInt(1_000_000),
+  }
+);
+```
+
+## Accounts
+
+| Name | Type | Signer | Writable | Description |
+|------|------|--------|----------|-------------|
+| `owner` | `PublicKey` | Yes | Yes | The user merging PT + YT |
+| `authority` | `PublicKey` | No | Yes | Vault authority PDA |
+| `vault` | `PublicKey` | No | Yes | Vault account |
+| `syDst` | `PublicKey` | No | Yes | Destination SY token account |
+| `escrowSy` | `PublicKey` | No | Yes | Vault SY escrow account |
+| `ytSrc` | `PublicKey` | No | Yes | Source YT token account |
+| `ptSrc` | `PublicKey` | No | Yes | Source PT token account |
+| `mintYt` | `PublicKey` | No | Yes | YT mint address |
+| `mintPt` | `PublicKey` | No | Yes | PT mint address |
+| `tokenProgram` | `PublicKey` | No | No | SPL Token program |
+| `syProgram` | `PublicKey` | No | No | SY program |
+| `addressLookupTable` | `PublicKey` | No | No | Vault address lookup table |
+| `yieldPosition` | `PublicKey` | No | Yes | Vault robot yield position |
+| `eventAuthority` | `PublicKey` | No | No | Event authority PDA |
+| `program` | `PublicKey` | No | No | Exponent Core program |
+
+## Args
+
+| Name | Type | Description |
+|------|------|-------------|
+| `amount` | `bigint` | Amount of PT + YT to merge (in base units) |
+
+## Returns
+
+`TransactionInstruction` — a Solana transaction instruction ready to be added to a transaction.

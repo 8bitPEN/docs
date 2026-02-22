@@ -1,0 +1,47 @@
+---
+title: Overview
+description: TypeScript SDK instruction functions for the Exponent Yield Stripping protocol
+---
+
+# Vault Instructions
+
+These are the instruction builders provided by the `Vault` class. They handle account resolution, address lookup tables, and CPI routing automatically.
+
+<Tip>
+For low-level control, see the [raw Codama-generated instructions](/yield-stripping/raw-instructions/overview) which require manual account resolution.
+</Tip>
+
+## Installation
+
+```bash
+npm install @exponent-labs/exponent-sdk @solana/web3.js
+```
+
+All instructions are methods on the `Vault` class:
+
+```typescript
+import { Vault, LOCAL_ENV } from "@exponent-labs/exponent-sdk";
+
+const vault = await Vault.load(LOCAL_ENV, connection, vaultAddress);
+```
+
+## Strip & Merge
+
+<CardGroup cols={2}>
+  <Card title="Strip from Base" href="/yield-stripping/typescript/instructions/ix-strip-from-base" />
+  <Card title="Merge to Base" href="/yield-stripping/typescript/instructions/ix-merge-to-base" />
+  <Card title="Strip (SY)" href="/yield-stripping/typescript/instructions/ix-strip" />
+  <Card title="Merge (to SY)" href="/yield-stripping/typescript/instructions/ix-merge" />
+</CardGroup>
+
+## Yield Position Management
+
+<CardGroup cols={2}>
+  <Card title="Initialize Yield Position" href="/yield-stripping/typescript/instructions/ix-initialize-yield-position" />
+  <Card title="Collect Interest" href="/yield-stripping/typescript/instructions/ix-collect-interest" />
+  <Card title="Collect Emission" href="/yield-stripping/typescript/instructions/ix-collect-emission" />
+</CardGroup>
+
+<Note>
+For depositing/withdrawing YT and staging yield, see the [YtPosition Instructions](/yield-stripping/typescript/yt-instructions/overview).
+</Note>

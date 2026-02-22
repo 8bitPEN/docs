@@ -1,0 +1,44 @@
+---
+title: Withdraw YT
+description: Withdraw YT tokens from a yield position
+---
+
+The `ixWithdrawYt` method on the `YtPosition` class creates a transaction instruction that withdraws YT tokens from the yield position back to the user's token account.
+
+## Usage
+
+```typescript
+import { Vault, YtPosition, LOCAL_ENV } from "@exponent-labs/exponent-sdk";
+import { Connection, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
+
+const connection = new Connection("https://api.mainnet-beta.solana.com");
+const vault = await Vault.load(LOCAL_ENV, connection, vaultAddress);
+const ytPosition = await YtPosition.loadByOwner(LOCAL_ENV, connection, wallet.publicKey, vault);
+
+const ix = ytPosition.ixWithdrawYt({
+  amount: 1_000_000n,
+});
+
+const tx = new Transaction().add(ix);
+const signature = await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+<Tip>
+Stage and collect any accrued yield before withdrawing YT. Withdrawing reduces your YT balance, which affects future yield accrual.
+</Tip>
+
+## Required Parameters
+
+| Parameter | Type     | Description                       |
+| --------- | -------- | --------------------------------- |
+| `amount`  | `bigint` | Amount of YT tokens to withdraw   |
+
+## Optional Parameters
+
+| Parameter | Type        | Description                                             |
+| --------- | ----------- | ------------------------------------------------------- |
+| `ytDst`   | `PublicKey`  | Destination YT token account. Defaults to owner's ATA   |
+
+## Returns
+
+Returns a `TransactionInstruction` that transfers YT from the yield position escrow back to the user.

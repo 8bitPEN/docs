@@ -1,0 +1,161 @@
+---
+title: SDK Quickstart
+description: Get started with the Exponent Yield Stripping SDK
+---
+
+Set up the Exponent SDK and walk through the complete yield stripping lifecycle — from stripping base tokens into PT and YT, to collecting yield, and merging back.
+
+## Installation
+
+<CodeGroup>
+```bash yarn
+yarn add @exponent-labs/exponent-sdk
+```
+```bash npm
+npm install @exponent-labs/exponent-sdk
+```
+```bash pnpm
+pnpm add @exponent-labs/exponent-sdk
+```
+</CodeGroup>
+
+## Setup
+
+```typescript
+import { Vault, YtPosition, LOCAL_ENV } from "@exponent-labs/exponent-sdk";
+import {
+  Connection,
+  PublicKey,
+  Transaction,
+  sendAndConfirmTransaction,
+  Keypair,
+} from "@solana/web3.js";
+
+const connection = new Connection("https://api.mainnet-beta.solana.com");
+const wallet = Keypair.fromSecretKey(/* your keypair */);
+const vaultAddress = new PublicKey("...");
+
+const vault = await Vault.load(LOCAL_ENV, connection, vaultAddress);
+```
+
+## 1. Strip Base Tokens into PT and YT
+
+Use `ixStripFromBase` to convert a base asset (e.g., USDC) directly into PT and YT. This wraps the base into SY and strips it in a single atomic instruction.
+
+```typescript
+const ix = await vault.ixStripFromBase({
+  owner: wallet.publicKey,
+  amountBase: 1_000_000n, // e.g., 1 USDC (6 decimals)
+});
+
+const tx = new Transaction().add(ix);
+await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+<Tip>
+If you already hold SY tokens, use `vault.ixStrip()` instead — it skips the base-to-SY wrapping step.
+</Tip>
+
+## 2. Initialize a Yield Position
+
+Before you can deposit YT to earn yield, you need to create a `YieldTokenPosition` account for your wallet. This is a one-time setup per vault.
+
+<Note>
+YT is just an SPL token — the protocol can't track yield for tokens in your wallet. The `YieldTokenPosition` account records your deposited YT balance and the SY exchange rate at entry, which is needed to compute your earned yield.
+</Note>
+
+```typescript
+const initIx = vault.ixInitializeYieldPosition({
+  owner: wallet.publicKey,
+});
+
+const tx = new Transaction().add(initIx);
+await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+## 3. Deposit YT
+
+Load your yield position, then deposit YT into it. Once deposited, your position begins accruing interest and emissions.
+
+```typescript
+const ytPosition = await YtPosition.loadByOwner(
+  LOCAL_ENV,
+  connection,
+  wallet.publicKey,
+  vault,
+);
+
+const depositIx = ytPosition.ixDepositYt({
+  amount: 1_000_000n, // amount of YT to deposit
+});
+
+const tx = new Transaction().add(depositIx);
+await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+## 4. Stage Yield
+
+Before collecting, you need to stage yield. This computes your earned interest and emissions based on the current SY exchange rate.
+
+```typescript
+const stageIx = ytPosition.ixStageYield({
+  payer: wallet.publicKey,
+});
+
+const tx = new Transaction().add(stageIx);
+await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+## 5. Collect Interest
+
+After staging, collect your earned interest (paid in SY tokens).
+
+```typescript
+const collectIx = ytPosition.ixCollectInterest({
+  signer: wallet.publicKey,
+});
+
+const tx = new Transaction().add(collectIx);
+await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+## 6. Merge PT and YT Back to Base
+
+When you're ready to exit, merge your PT and YT back into the base asset.
+
+```typescript
+const { ixs, setupIxs } = await vault.ixMergeToBase({
+  owner: wallet.publicKey,
+  amountPy: 1_000_000n, // amount of PT & YT to merge
+});
+
+const tx = new Transaction().add(...setupIxs, ...ixs);
+await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+## Reading State
+
+Query vault and position state without sending transactions:
+
+```typescript
+// Current SY exchange rate
+const rate = vault.currentSyExchangeRate;
+
+// Vault expiration
+const expiresAt = vault.expirationDate;
+
+// Claimable interest (in base token units)
+const claimable = ytPosition.getClaimableInterest(rate);
+
+// Claimable emissions
+const emissions = ytPosition.getClaimableEmissions();
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Vault Instructions" href="/yield-stripping/typescript/instructions/overview" />
+  <Card title="YtPosition Instructions" href="/yield-stripping/typescript/yt-instructions/overview" />
+  <Card title="Read Functions" href="/yield-stripping/typescript/read-functions/overview" />
+  <Card title="Core Concepts" href="/yield-stripping/concepts" />
+</CardGroup>

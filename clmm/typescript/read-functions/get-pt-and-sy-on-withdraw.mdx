@@ -1,0 +1,52 @@
+---
+title: Get PT and SY on Withdraw
+description: Calculate PT and SY amounts to be received when withdrawing liquidity
+---
+
+The `getPtAndSyOnWithdrawLiquidity()` method calculates the amounts of PT (Principal Token) and SY (Standardized Yield) that will be received when removing liquidity from a position.
+
+## Usage
+
+```typescript
+import { MarketThree, LOCAL_ENV } from "@exponent-labs/exponent-sdk";
+import { Connection } from "@solana/web3.js";
+
+const connection = new Connection("https://api.mainnet-beta.solana.com");
+const market = await MarketThree.load(LOCAL_ENV, connection, marketAddress);
+
+// Get withdrawal amounts for full position
+const { totalPtOut, totalSyOut } = market.getPtAndSyOnWithdrawLiquidity(position);
+
+console.log("PT to receive:", totalPtOut);
+console.log("SY to receive:", totalSyOut);
+
+// Get withdrawal amounts for partial position
+const liquidityToRemove = position.lpBalance / 2n; // Remove 50%
+const { totalPtOut: partialPt, totalSyOut: partialSy } = market.getPtAndSyOnWithdrawLiquidity(
+  position,
+  liquidityToRemove
+);
+```
+
+## Parameters
+
+| Parameter            | Type             | Required | Description                                                                           |
+| -------------------- | ---------------- | -------- | ------------------------------------------------------------------------------------- |
+| `position`           | `LpPositionCLMM` | Yes      | The LP position to withdraw liquidity from                                            |
+| `liquidityToRemove`  | `bigint`         | No       | Amount of liquidity to remove. If not provided, assumes full position balance removal |
+
+## Returns
+
+Returns an object with:
+
+```typescript
+{
+  totalPtOut: bigint;  // Amount of PT that will be received
+  totalSyOut: bigint;  // Amount of SY that will be received
+}
+```
+
+| Property      | Type     | Description                                   |
+| ------------- | -------- | --------------------------------------------- |
+| `totalPtOut`  | `bigint` | Amount of PT that will be received on withdrawal |
+| `totalSyOut`  | `bigint` | Amount of SY that will be received on withdrawal |

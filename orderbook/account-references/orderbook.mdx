@@ -1,0 +1,129 @@
+---
+title: Orderbook
+description: Orderbook account structure and fields
+---
+
+The Orderbook account is the account that stores all offers and accounting for filled offers in state.
+
+## Constants
+
+```rust
+const MAX_FILLED_OFFERS: u32 = 120;
+const MAX_OFFERS: usize = 500;
+const MAX_PRICE_NODES: usize = 100;
+const MAX_USER_ESCROWS: usize = 250;
+const PRICE_BASE_POINTS: u64 = 1_000_000;
+const BASE_POINTS: u64 = 10_000;
+```
+
+## RawOrderbook
+
+```rust
+pub struct RawOrderbook {
+    /// Configuration options for orderbook
+    pub configuration_options: ConfigurationOptions,
+
+    /// Link to vault
+    pub vault: Pubkey,
+
+    /// Link to orderbook-owned YT position
+    pub yield_position: Pubkey,
+
+    /// Address lookup table for orderbook
+    pub address_lookup_table: Pubkey,
+
+    /// Exponent core program address
+    pub exponent_core_program: Pubkey,
+
+    /// SY program address
+    pub sy_program: Pubkey,
+
+    /// Orderbook-owned escrow for SY
+    pub token_escrow_sy: Pubkey,
+
+    /// Orderbook-owned escrow for YT
+    pub token_escrow_yt: Pubkey,
+
+    /// Orderbook-owned escrow for PT
+    pub token_escrow_pt: Pubkey,
+
+    /// CPI accounts storage key
+    pub cpi_account_orderbook: Pubkey,
+
+    /// Admin key
+    pub admin: Pubkey,
+
+    /// Last seen SY exchange rate
+    pub last_sy_exchange_rate: Number,
+
+    /// Financial state of the orderbook
+    pub financials: OrderbookFinancials,
+
+    /// Price tree (RedBlackTree)
+    /// Key: ln(1 + apy) scaled by PRICE_BASE_POINTS
+    pub prices: RedBlackTree<u32, PriceNode, MAX_PRICE_NODES>,
+
+    /// Offer slots (NodeAllocator)
+    pub offers: NodeAllocator<Offer, MAX_OFFERS, 4>,
+
+    /// User escrows (NodeAllocator)
+    pub user_escrows: NodeAllocator<UserEscrow, MAX_USER_ESCROWS, 2>,
+
+    /// Seed ID for PDA derivation
+    pub seed_id: [u8; 4],
+
+    /// Bump for signer authority PDA
+    pub signer_bump: [u8; 1],
+}
+```
+
+## ConfigurationOptions
+
+```rust
+pub struct ConfigurationOptions {
+    /// Minimum threshold amount for offers
+    pub threshold_amount: u64,
+
+    /// Maker fee rate (ln-scaled)
+    pub ln_maker_fee_rate: f64,
+
+    /// Taker fee rate (ln-scaled)
+    pub ln_taker_fee_rate: f64,
+
+    /// Price decimal precision
+    pub price_decimals: u8,
+}
+```
+
+## OrderbookFinancials
+
+```rust
+pub struct OrderbookFinancials {
+    /// Last seen SY index
+    pub last_seen_sy_index: Number,
+
+    /// YT balance held by orderbook
+    pub yt_balance: u64,
+
+    /// SY balance held by orderbook
+    pub sy_balance: u64,
+
+    /// PT balance held by orderbook
+    pub pt_balance: u64,
+
+    /// Accumulated YT fees
+    pub yt_fee_balance: u64,
+
+    /// Accumulated SY fees
+    pub sy_fee_balance: u64,
+
+    /// Accumulated PT fees
+    pub pt_fee_balance: u64,
+
+    /// Staged SY balance
+    pub staged_sy: u64,
+
+    /// Expiration timestamp (copied from vault)
+    pub expiration_ts: u32,
+}
+```

@@ -1,0 +1,69 @@
+---
+title: Core Concepts
+description: Yield stripping-specific concepts — emissions, yield collection workflow, and key accounts
+---
+
+This page covers concepts specific to the Yield Stripping protocol. For shared protocol concepts, see:
+
+- [SY: Standardized Yield](/home/learn/standardized-yield) — What SY is, the exchange rate, standard programs, instruction interface
+- [PT: Principal Token](/home/learn/principal-token) — PT mechanics, backing, fixed-rate strategy
+- [YT: Yield Token](/home/learn/yield-token) — YT mechanics, yield formula, leverage
+- [Strip, Trade, and Redeem](/home/learn/token-lifecycle) — The full strip → trade → yield → merge → redeem flow
+- [Maturity](/home/learn/maturity) — Before/at/after maturity behavior, emergency mode, vault invariant
+
+---
+
+## Emissions
+
+Emissions are **auxiliary reward tokens** distributed to YT depositors — separate from the primary SY interest. For example, a vault wrapping a Marginfi lending position might distribute MFI governance tokens as emissions.
+
+### How emissions work
+
+Each vault can have multiple emission tokens, tracked via `EmissionInfo` on the vault account and `YieldTokenTracker` on the yield position.
+
+Emissions use a **per-share index model** (similar to Compound's cToken reward distribution):
+
+```
+earned_emission = (current_index - last_seen_index) × sy_balance
+```
+
+Where:
+- `current_index` — the vault's `EmissionInfo.final_index`, updated from the SY program's `SyState.emission_indexes` vector
+- `last_seen_index` — the position's `YieldTokenTracker.last_seen_index`, updated when yield is staged
+- `sy_balance` — the position's total SY-equivalent balance (staged interest + YT converted to SY at `final_sy_exchange_rate`)
+
+### Collecting emissions
+
+1. Call `ixStageYield` — this updates both interest and emission trackers
+2. Call `ixCollectEmission` with the emission index (0-based, corresponding to the vault's emission list)
+
+Each emission has a treasury fee (`fee_bps`) and a treasury accumulator for post-maturity rewards.
+
+---
+
+## YT Yield Collection Workflow
+
+Yield collection is a multi-step process. YT is an SPL token — the protocol cannot track yield for tokens sitting in an arbitrary wallet. Depositing YT into a `YieldTokenPosition` account escrows your tokens on-chain so the program knows your balance, and records the current SY exchange rate as your entry point (`last_seen_index`). When you later stage yield, the program computes the delta between your entry rate and the current rate to determine how much interest you've earned.
+
+1. **Initialize position** — Create a `YieldTokenPosition` PDA for the user via `ixInitializeYieldPosition`
+2. **Deposit YT** — Transfer YT into the position via `ixDepositYt`. The position starts tracking yield from this point.
+3. **Stage yield** — Call `ixStageYield` to compute earned interest and emissions. This updates the position's `last_seen_index` and moves earned amounts into the `staged` field.
+4. **Collect** — Call `ixCollectInterest` (for SY interest) or `ixCollectEmission` (for reward tokens) to withdraw staged amounts.
+
+See the [SDK Quickstart](/yield-stripping/sdk-quickstart) for complete code examples.
+
+---
+
+## Key Accounts
+
+### Vault
+
+The `Vault` is the on-chain account that holds the state for a yield stripping market. It tracks PT supply, SY balances, exchange rates, token mints, emission configurations, status flags, and claim limits.
+
+In the SDK, the `Vault` class is the primary entry point for interacting with a market. See the [Vault Account Reference](/yield-stripping/account-references/vault) for the full on-chain struct definition.
+
+### YtPosition (Yield Token Position)
+
+A `YtPosition` is a per-user, per-vault PDA that tracks a user's deposited YT balance and accrued yield (interest and emissions). It records the SY exchange rate at the time of each deposit/stage (`last_seen_index`), which the program uses to compute how much yield has accrued since the last update. Before depositing YT to earn yield, users must initialize their yield position via `ixInitializeYieldPosition`.
+
+See the [YieldTokenPosition Account Reference](/yield-stripping/account-references/yield-token-position) for the full on-chain struct definition.

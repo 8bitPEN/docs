@@ -1,0 +1,111 @@
+---
+title: Calculate Global Fee Rate
+description: Calculate the global fee rate and TVL metrics between two market snapshots
+---
+
+The `MarketThree.calcGlobalFeeRate()` static method calculates the global fee rate and total value locked (TVL) metrics by comparing two market snapshots taken at different times.
+
+## Usage
+
+```typescript
+import { MarketThree } from "@exponent-labs/exponent-sdk";
+
+// Create market snapshot data from historical and current state
+const marketSnapshotCurrent = {
+  syExchangeRate: 1.02,
+  currentSpotPrice: 1.08,
+  financials: currentFinancials,
+  feeGrowthIndexGlobalPt: 1000000n,
+  feeGrowthIndexGlobalSy: 2000000n,
+  currentPrefixSum: 5000000n,
+  snapshotTimeUnix: Math.floor(Date.now() / 1000),
+};
+
+const marketSnapshotHistory = {
+  syExchangeRate: 1.01,
+  currentSpotPrice: 1.07,
+  financials: historicalFinancials,
+  feeGrowthIndexGlobalPt: 900000n,
+  feeGrowthIndexGlobalSy: 1800000n,
+  currentPrefixSum: 4800000n,
+  snapshotTimeUnix: Math.floor(Date.now() / 1000) - 86400, // 24 hours ago
+};
+
+const feeMetrics = MarketThree.calcGlobalFeeRate(
+  marketSnapshotCurrent,
+  marketSnapshotHistory
+);
+
+console.log("Total fee rate:", feeMetrics.totalFeeRate);
+console.log("Total fees (base token):", feeMetrics.totalFeesInBaseToken);
+console.log("TVL (base token):", feeMetrics.tvlInBaseToken);
+```
+
+## Parameters
+
+| Parameter                  | Type                  | Required | Description                                    |
+| -------------------------- | --------------------- | -------- | ---------------------------------------------- |
+| `marketSnapshotDataCurrent` | `MarketSnapshotData` | Yes      | Current market snapshot data                   |
+| `marketSnapshotDataHistory` | `MarketSnapshotData` | Yes      | Historical market snapshot data for comparison |
+
+### MarketSnapshotData Type
+
+```typescript
+{
+  syExchangeRate: number;              // Current SY exchange rate
+  currentSpotPrice: number;            // Spot price in format of 1 + percentage / 100
+  financials: MarketThreeFinancials;   // Market financial data
+  feeGrowthIndexGlobalPt: bigint;      // Global PT fee growth index
+  feeGrowthIndexGlobalSy: bigint;      // Global SY fee growth index
+  currentPrefixSum: bigint;            // Current prefix sum
+  snapshotTimeUnix: number;            // Snapshot timestamp in Unix seconds
+}
+```
+
+## Returns
+
+Returns an object with:
+
+```typescript
+{
+  totalFeeRate: number;
+  totalFeesInBaseToken: number;
+  tvlInBaseToken: number;
+}
+```
+
+| Property               | Type     | Description                                                |
+| ---------------------- | -------- | ---------------------------------------------------------- |
+| `totalFeeRate`         | `number` | The calculated fee rate (total fees / TVL)                 |
+| `totalFeesInBaseToken` | `number` | Total fees earned in base token terms (PT + SY combined)   |
+| `tvlInBaseToken`       | `number` | Total value locked in base token terms (PT + SY liquidity) |
+
+## Calculation Details
+
+The method performs the following calculations:
+
+1. **Calculate PT fees in base token**:
+   ```
+   feePt = (feeGrowthPtCurrent - feeGrowthPtHistory) / currentPrefixSum
+   feePtInBaseToken = feePt * ptPriceInBaseToken
+   ```
+
+2. **Calculate SY fees in base token**:
+   ```
+   feeSy = (feeGrowthSyCurrent - feeGrowthSyHistory) / currentPrefixSum
+   feeSyInBaseToken = feeSy * syExchangeRate
+   ```
+
+3. **Calculate TVL**:
+   ```
+   ptLiquidity = ptBalance * ptPriceInBaseToken
+   syLiquidity = syBalance * syExchangeRate
+   tvl = ptLiquidity + syLiquidity
+   ```
+
+4. **Calculate total fee rate**:
+   ```
+   totalFeeRate = totalFeesInBaseToken / tvlInBaseToken
+   ```
+
+The PT price is calculated using time decay based on the time remaining until market expiration.

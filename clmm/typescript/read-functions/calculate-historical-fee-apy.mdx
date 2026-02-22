@@ -1,0 +1,81 @@
+---
+title: Calculate Historical Fee APY
+description: Calculate annualized fee APY from historical fee growth data
+---
+
+The `MarketThree.calculateHistoricalFeeApy()` static method calculates the annualized fee APY (Annual Percentage Yield) based on historical fee growth data over a specific time period.
+
+## Usage
+
+```typescript
+import { MarketThree } from "@exponent-labs/exponent-sdk";
+
+// Calculate fee APY over a 24-hour period
+const feeGrowthDeltaSy = currentFeeGrowthSy - historicalFeeGrowthSy;
+const feeGrowthDeltaPt = currentFeeGrowthPt - historicalFeeGrowthPt;
+
+const apyData = MarketThree.calculateHistoricalFeeApy({
+  feeGrowthDeltaSy,
+  feeGrowthDeltaPt,
+  avgLiquidity: 1000000n,  // Average liquidity in the range
+  hoursElapsed: 24,
+});
+
+console.log("SY fee APY:", apyData.feeApySy, "%");
+console.log("PT fee APY:", apyData.feeApyPt, "%");
+console.log("Total fee APY:", apyData.feeApyTotal, "%");
+console.log("Total SY fees earned:", apyData.totalFeesSy);
+console.log("Total PT fees earned:", apyData.totalFeesPt);
+```
+
+## Parameters
+
+| Parameter           | Type     | Required | Description                                              |
+| ------------------- | -------- | -------- | -------------------------------------------------------- |
+| `feeGrowthDeltaSy`  | `bigint` | Yes      | Change in global SY fee growth over the period           |
+| `feeGrowthDeltaPt`  | `bigint` | Yes      | Change in global PT fee growth over the period           |
+| `avgLiquidity`      | `bigint` | Yes      | Average liquidity in the range during the period         |
+| `hoursElapsed`      | `number` | Yes      | Number of hours in the measurement period                |
+
+## Returns
+
+Returns an object with:
+
+```typescript
+{
+  feeApySy: number;
+  feeApyPt: number;
+  feeApyTotal: number;
+  totalFeesSy: bigint;
+  totalFeesPt: bigint;
+}
+```
+
+| Property       | Type     | Description                                           |
+| -------------- | -------- | ----------------------------------------------------- |
+| `feeApySy`     | `number` | Annualized APY for SY fees as a percentage            |
+| `feeApyPt`     | `number` | Annualized APY for PT fees as a percentage            |
+| `feeApyTotal`  | `number` | Combined annualized APY (SY + PT) as a percentage     |
+| `totalFeesSy`  | `bigint` | Total SY fees earned during the period                |
+| `totalFeesPt`  | `bigint` | Total PT fees earned during the period                |
+
+## Calculation Details
+
+The APY calculation follows these steps:
+
+1. Calculate total fees earned using Q64.64 math:
+   ```
+   totalFees = (feeGrowthDelta * avgLiquidity) >> 64
+   ```
+
+2. Calculate annualization factor:
+   ```
+   annualizationFactor = 8760 / hoursElapsed  // 8760 = hours per year
+   ```
+
+3. Calculate APY:
+   ```
+   feeApy = (fees / avgLiquidity) * annualizationFactor * 100
+   ```
+
+If `avgLiquidity` is 0 or `hoursElapsed` is 0, all return values will be 0.

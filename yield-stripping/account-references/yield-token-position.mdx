@@ -1,0 +1,85 @@
+---
+title: Yield Token Position
+description: On-chain YieldTokenPosition account structure and fields
+---
+
+The YieldTokenPosition account tracks a user's deposited YT balance and accrued yield (interest and emissions) for a specific vault. Each user has one yield position per vault, derived as a PDA.
+
+## YieldTokenPosition
+
+```rust
+pub struct YieldTokenPosition {
+    /// Link to address that owns this position
+    pub owner: Pubkey,
+
+    /// Link to vault that manages the YT
+    pub vault: Pubkey,
+
+    /// Track the YT balance of the user here
+    pub yt_balance: u64,
+
+    /// Tracker for interest earned (paid in SY)
+    pub interest: YieldTokenTracker,
+
+    /// Tracker for emissions earned (paid in emission tokens)
+    pub emissions: Vec<YieldTokenTracker>,
+}
+```
+
+## YieldTokenTracker
+
+Generic tracker used for both interest and emission yield accrual.
+
+```rust
+pub struct YieldTokenTracker {
+    /// The index is the per-share value of the SY token
+    /// Note that the YT balance must be converted to the equivalent SY balance
+    pub last_seen_index: Number,
+
+    /// Staged tokens that may be withdrawn
+    pub staged: u64,
+}
+```
+
+## Fields
+
+### YieldTokenPosition
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `owner` | `Pubkey` | Address that owns this position |
+| `vault` | `Pubkey` | Vault this position belongs to |
+| `yt_balance` | `u64` | Amount of YT deposited in this position |
+| `interest` | `YieldTokenTracker` | Tracks accrued SY interest |
+| `emissions` | `Vec<YieldTokenTracker>` | Tracks accrued emission rewards (one per emission token) |
+
+### YieldTokenTracker
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `last_seen_index` | `Number` | Last observed per-share index for this tracker |
+| `staged` | `u64` | Amount of tokens staged and available for collection |
+
+## How Yield Accrual Works
+
+1. **Deposit YT** — User deposits YT into the position. The `yt_balance` increases and the tracker's `last_seen_index` is set to the vault's current rate.
+
+2. **Stage Yield** — When `stageYtYield` is called, the position calculates earned interest since the last staging:
+   - Interest earned = change in exchange rate applied to the YT balance (converted to SY equivalent)
+   - Emission rewards = change in emission indexes applied to the total SY balance
+   - Earned amounts are added to the `staged` field of each tracker
+
+3. **Collect** — The `staged` amount can be withdrawn via `collectInterest` or `collectEmission`. The `staged` field is decremented by the collected amount.
+
+### Interest Calculation
+
+Interest is computed based on the vault's `final_sy_exchange_rate` (which freezes at maturity). If the current rate exceeds the final rate (post-maturity), earned SY is scaled down proportionally:
+
+```
+earned_sy = yt_balance * (1/last_seen_rate - 1/final_rate)
+scaled_sy = earned_sy * (final_rate / current_rate)  // if current > final
+```
+
+### Emergency Mode
+
+If the vault is in emergency mode (current rate below all-time high), interest staging is paused. Emission rewards continue to accrue normally.

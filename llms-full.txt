@@ -1,0 +1,522 @@
+# Exponent Protocol — Full API Reference
+
+> Complete method signatures for @exponent-labs/exponent-sdk
+> All types from @solana/web3.js: PublicKey, Connection, TransactionInstruction, Keypair
+> BN from @coral-xyz/anchor
+> All amounts in lamports (bigint or BN). All orderbook prices in APY (decimal).
+
+## Core Concepts
+
+Exponent decomposes yield-bearing assets into Principal Tokens (PT) and Yield Tokens (YT) via Standardized Yield (SY) wrappers.
+
+**Strip / Merge:** `1 SY → r × PT + r × YT` (where r = SY exchange rate). Reverse: `r × PT + r × YT → 1 SY`.
+
+**PT Pricing (continuous compounding):**
+```
+P_PT = e^(-APY × t)
+```
+Where t = secondsToMaturity / 31,536,000 (fraction of a year). As maturity approaches, P_PT → 1.
+
+**YT Pricing:**
+```
+P_YT = (1 - P_PT) / exchange_rate
+```
+
+**YT Yield Accrual:**
+```
+earned_sy = (1/old_rate - 1/new_rate) × yt_balance
+```
+YT must be deposited into a YieldTokenPosition to earn yield. Holding YT in a wallet does NOT accrue interest.
+
+**Fee Decay (shared by CLMM and Orderbook):**
+```
+fee_rate = e^(ln_fee_rate_root × τ)
+```
+Where τ = normalized time remaining. Fees decrease to zero at maturity.
+
+**Flavors (yield sources):** marginfi, kamino, jitoRestaking, perena, generic (Meteora, Adrena, Fragmetric, Sanctum, Jupiter Perps, Kamino Vault, and more).
+
+---
+
+## Setup
+
+```typescript
+import { Vault, MarketThree, Orderbook, Router, YtPosition, LpPosition, LOCAL_ENV } from "@exponent-labs/exponent-sdk";
+import { Connection, PublicKey, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
+
+const connection = new Connection("https://api.mainnet-beta.solana.com", "confirmed");
+```
+
+## Programs
+
+- exponent_core: ExponentnaRg3CQbW6dqQNZKXp7gtZ9DGMp1cwC4HAS7
+- exponent_clmm: GvHPnJqothHhg5hyTDstNcGEjD8nJL9MeRsU1R6PUc1m
+- exponent_orderbook: ExpRUPxMSwYYGjt1eoa2NonhKKrsFB1AQ4vZ6ujCHviP
+- marginfi_sy: XPMfipyhcbq3DBvgvxkbZY7GekwmGNJLMD3wdiCkBc7
+- kamino_sy: XPK1ndTK1xrgRg99ifvdPP1exrx8D1mRXTuxBkkroCx
+- jito_restaking_sy: XPJitopeUEhMZVF72CvswnwrS2U2akQvk5s26aEfWv2
+- perena_sy: XPerenaJPyvnjseLCn7rgzxFEum6zX1k89C13SPTyGZ
+- generic_sy: XP1BRLn8eCYSygrd8er5P4GKdzqKbC3DLoSsS5UYVZy
+
+---
+
+## Vault
+
+Load: `const vault = await Vault.load(LOCAL_ENV, connection, vaultAddress)`
+
+### Static Methods
+
+- `Vault.load(env: Environment, connection: Connection, address: PublicKey, options?: VaultLoadOptions): Promise<Vault>`
+- `Vault.loadFromJson(vaultJson: VaultJson, address: PublicKey, env: Environment, connection: Connection): Vault`
+
+### Instruction Methods
+
+#### ixStrip
+Strip SY into PT + YT.
+```
+vault.ixStrip({ syIn: bigint, depositor: PublicKey, ptDst?: PublicKey, ytDst?: PublicKey, sySrc?: PublicKey }): TransactionInstruction
+```
+
+#### ixStripFromBase
+Strip from base asset (e.g., USDC) into PT + YT. Auto-mints SY.
+```
+await vault.ixStripFromBase({ owner: PublicKey, amountBase: bigint, baseSrc?: PublicKey, sySrc?: PublicKey, ptDst?: PublicKey, ytDst?: PublicKey }): Promise<TransactionInstruction>
+```
+
+#### ixMerge
+Merge PT + YT back into SY.
+```
+vault.ixMerge({ pyIn: bigint, depositor: PublicKey, ptSrc?: PublicKey, ytSrc?: PublicKey, syDst?: PublicKey }): TransactionInstruction
+```
+
+#### ixMergeToBase
+Merge PT + YT back into base asset. Auto-redeems SY.
+```
+await vault.ixMergeToBase({ owner: PublicKey, amountPy: bigint, ptSrc?: PublicKey, ytSrc?: PublicKey, syDst?: PublicKey, baseDst?: PublicKey }): Promise<{ ixs: TransactionInstruction[], setupIxs: TransactionInstruction[] }>
+```
+
+#### ixInitializeYieldPosition
+Create a yield tracking account for a user. Must be called once per vault per user before depositing YT.
+```
+vault.ixInitializeYieldPosition({ owner: PublicKey }): TransactionInstruction
+```
+
+#### ixCollectInterest
+Collect accrued SY interest from YT position.
+```
+vault.ixCollectInterest({ owner: PublicKey, amount: Amount, syDst?: PublicKey }): TransactionInstruction
+```
+
+#### ixCollectEmission
+Collect reward token emissions.
+```
+vault.ixCollectEmission({ owner: PublicKey, emissionIndex: number, amount: Amount, emissionDst?: PublicKey }): TransactionInstruction
+```
+
+#### ixCollectTreasuryInterest
+Admin: collect protocol treasury fees.
+```
+vault.ixCollectTreasuryInterest({ signer: PublicKey, syDst: PublicKey, amount: Amount, kind: CollectTreasuryInterestKind }): TransactionInstruction
+```
+
+#### ixCollectTreasuryEmission
+Admin: collect treasury emission rewards.
+```
+vault.ixCollectTreasuryEmission({ index: number, amount: Amount, emissionDst: PublicKey, signer: PublicKey, kind: CollectTreasuryEmissionKind }): TransactionInstruction
+```
+
+#### ixConfigureVault
+Admin: modify vault settings.
+```
+vault.ixConfigureVault({ signer: PublicKey, action: AdminAction }): TransactionInstruction
+```
+
+#### ixAddStandaloneEmission
+Admin: add a new emission reward token.
+```
+vault.ixAddStandaloneEmission({ signer: PublicKey, emissionMint: PublicKey, emissionTokenProgram?: PublicKey, treasuryTokenAccountEmission: PublicKey, treasuryFeeBps: number, altAddresses: PublicKey[], cpiAccounts: CpiAccountsRaw }): { extendAddressLookupTableExtensionAccounts: PublicKey[], ix: TransactionInstruction }
+```
+
+### Properties
+
+- `vault.mintSy: PublicKey` — SY token mint
+- `vault.mintPt: PublicKey` — PT token mint
+- `vault.mintYt: PublicKey` — YT token mint
+- `vault.syBalance: bigint` — Total SY in vault escrow
+- `vault.flavor` — Underlying yield source info
+- `vault.currentSyExchangeRate: number` — Current SY exchange rate
+- `vault.expirationTimestamp: number` — Vault maturity (unix seconds)
+- `vault.expirationDate: Date` — Vault maturity as Date
+- `vault.authority: PublicKey` — Vault authority PDA
+- `vault.escrowSy: PublicKey` — SY escrow account
+- `vault.addressLookupTable: PublicKey` — ALT for CPI accounts
+- `vault.syEmissions: SyEmission[]` — Reward emissions from SY source
+- `vault.vaultEmissions: VaultEmission[]` — Vault-level emissions
+
+---
+
+## MarketThree (CLMM)
+
+Load: `const market = await MarketThree.load(LOCAL_ENV, connection, marketAddress)`
+
+### Static Methods
+
+- `MarketThree.load(env: Environment, connection: Connection, address: PublicKey, vault?: Vault, ticks?: Ticks, options?: MarketThreeLoadOptions): Promise<MarketThree>`
+- `MarketThree.annualize(rate: number, secondsRemaining: number): number`
+- `MarketThree.annualizeApy(rate: number, secondsRemaining: number): number`
+
+### Instruction Methods
+
+#### ixBuyPt
+Buy PT with SY on the CLMM.
+```
+market.ixBuyPt({ trader: PublicKey, amountSy: bigint, outConstraint: bigint, tokenPt?: PublicKey, tokenSy?: PublicKey, lnImpliedApyLimit?: number }): { ixs: TransactionInstruction[], setupIxs: TransactionInstruction[] }
+```
+
+#### ixSellPt
+Sell PT for SY on the CLMM.
+```
+market.ixSellPt({ trader: PublicKey, amountPt: bigint, outConstraint: bigint, tokenPt?: PublicKey, tokenSy?: PublicKey, lnImpliedApyLimit?: number }): { ixs: TransactionInstruction[], setupIxs: TransactionInstruction[] }
+```
+
+#### ixBuyPtExactOut
+Buy exact amount of PT, paying SY.
+```
+market.ixBuyPtExactOut({ trader: PublicKey, amountPt: bigint, maxSyIn?: bigint, tokenPt?: PublicKey, tokenSy?: PublicKey, lnImpliedApyLimit?: number }): { ixs: TransactionInstruction[], setupIxs: TransactionInstruction[] }
+```
+
+#### ixSellPtExactOut
+Sell PT to receive exact amount of SY.
+```
+market.ixSellPtExactOut({ trader: PublicKey, amountSy: bigint, maxPtIn?: bigint, tokenPt?: PublicKey, tokenSy?: PublicKey, lnImpliedApyLimit?: number }): { ixs: TransactionInstruction[], setupIxs: TransactionInstruction[] }
+```
+
+#### ixBuyYt
+Buy YT with SY. Internally strips SY and manages PT.
+```
+market.ixBuyYt({ trader: PublicKey, ytOut: bigint, maxSyIn: bigint, ytTrader?: PublicKey, ptTrader?: PublicKey, syTrader?: PublicKey, lnImpliedApyLimit?: number }): { ixs: TransactionInstruction[], setupIxs: TransactionInstruction[] }
+```
+
+#### ixSellYt
+Sell YT for SY. Internally merges with PT.
+```
+market.ixSellYt({ trader: PublicKey, ytIn: bigint, minSyOut: bigint, ytSrc?: PublicKey, ptSrc?: PublicKey, syDst?: PublicKey, lnImpliedApyLimit?: number }): { ixs: TransactionInstruction[], setupIxs: TransactionInstruction[] }
+```
+
+#### ixTradePt
+General PT/SY swap with direction parameter.
+```
+market.ixTradePt({ trader: PublicKey, traderAmount: bigint, outConstraint: bigint, swapDirection: SwapDirection, tokenPt?: PublicKey, tokenSy?: PublicKey, lnImpliedApyLimit?: number }): { ixs: TransactionInstruction[], setupIxs: TransactionInstruction[] }
+```
+
+#### ixTradePtExactOut
+General PT/SY swap with exact output and direction.
+```
+market.ixTradePtExactOut({ trader: PublicKey, amountOut: bigint, swapDirection: SwapDirection, amountInConstraint?: bigint, tokenPt?: PublicKey, tokenSy?: PublicKey, lnImpliedApyLimit?: number }): { ixs: TransactionInstruction[], setupIxs: TransactionInstruction[] }
+```
+
+#### ixWrapperBuyPt
+Buy PT with base asset (auto-wraps to SY).
+```
+await market.ixWrapperBuyPt({ owner: PublicKey, minPtOut: bigint, baseIn: bigint, tokenSyTrader?: PublicKey, tokenPtTrader?: PublicKey, tokenBaseTrader?: PublicKey, lnImpliedApyLimit?: number }): Promise<{ ixs: TransactionInstruction[], setupIxs: TransactionInstruction[] }>
+```
+
+#### ixWrapperSellPt
+Sell PT for base asset (auto-unwraps SY).
+```
+await market.ixWrapperSellPt({ owner: PublicKey, amount: bigint, minBaseOut: bigint, tokenSyTrader?: PublicKey, tokenPtTrader?: PublicKey, tokenBaseTrader?: PublicKey, lnImpliedApyLimit?: number }): Promise<{ ixs: TransactionInstruction[], setupIxs: TransactionInstruction[] }>
+```
+
+#### ixWrapperBuyYt
+Buy YT with base asset.
+```
+await market.ixWrapperBuyYt({ owner: PublicKey, ytOut: bigint, maxBaseIn: bigint, tokenSyTrader?: PublicKey, tokenPtTrader?: PublicKey, tokenYtTrader?: PublicKey, tokenBaseTrader?: PublicKey }): Promise<{ ixs: TransactionInstruction[], setupIxs: TransactionInstruction[] }>
+```
+
+#### ixWrapperSellYt
+Sell YT for base asset.
+```
+await market.ixWrapperSellYt({ owner: PublicKey, amount: bigint, minBaseOut: bigint, tokenBaseTrader?: PublicKey, tokenSyTrader?: PublicKey, tokenYtTrader?: PublicKey, tokenPtTrader?: PublicKey }): Promise<{ ixs: TransactionInstruction[], setupIxs: TransactionInstruction[] }>
+```
+
+#### ixDepositLiquidity
+Create new concentrated LP position at tick range.
+```
+market.ixDepositLiquidity({ ptInIntent: bigint, syInIntent: bigint, depositor: PublicKey, lowerTickKey: number, upperTickKey: number, ptSrc?: PublicKey, sySrc?: PublicKey, lpPosition?: Keypair }): { ix: TransactionInstruction, signers: Keypair }
+```
+
+#### ixWithdrawLiquidity
+Remove liquidity from LP position.
+```
+market.ixWithdrawLiquidity({ lpIn: bigint, withdrawer: PublicKey, lpPosition: PublicKey, minPtOut: bigint, minSyOut: bigint, ptDst?: PublicKey, syDst?: PublicKey }): { ixs: TransactionInstruction[], setupIxs: TransactionInstruction[] }
+```
+
+#### ixWrapperProvideLiquidity
+Provide liquidity using base asset with APY-based tick range.
+```
+await market.ixWrapperProvideLiquidity({ depositor: PublicKey, amountBase: bigint, minLpOut: bigint, lowerTickApy: number, upperTickApy: number, tokenSyDepositor?: PublicKey, tokenYtDepositor?: PublicKey, tokenPtDepositor?: PublicKey, tokenBaseDepositor?: PublicKey, lpPosition?: Keypair | PublicKey }): Promise<{ ixs: TransactionInstruction[], setupIxs: TransactionInstruction[] }>
+```
+
+#### ixWithdrawLiquidityToBase
+Withdraw liquidity and convert to base asset. Auto-redeems SY.
+```
+await market.ixWithdrawLiquidityToBase({ owner: PublicKey, amountLp: bigint, minBaseOut: bigint, lpPosition: PublicKey, tokenSyWithdrawer?: PublicKey, tokenYtWithdrawer?: PublicKey, tokenPtWithdrawer?: PublicKey, tokenBaseWithdrawer?: PublicKey }): Promise<{ ixs: TransactionInstruction[], setupIxs: TransactionInstruction[] }>
+```
+
+#### ixProvideLiquidityClassic
+Provide liquidity with separate base and PT amounts (classic mode).
+```
+await market.ixProvideLiquidityClassic({ depositor: PublicKey, amountBase: bigint, amountPt: bigint, minLpOut: bigint, lowerTickApy: number, upperTickApy: number, tokenSyDepositor?: PublicKey, tokenYtDepositor?: PublicKey, tokenPtDepositor?: PublicKey, tokenBaseDepositor?: PublicKey, lpPosition?: Keypair | PublicKey }): Promise<{ ixs: TransactionInstruction[], signers: Keypair[], setupIxs: TransactionInstruction[] }>
+```
+
+#### ixWithdrawLiquidityClassic
+Withdraw liquidity receiving PT and SY separately (classic mode).
+```
+await market.ixWithdrawLiquidityClassic({ owner: PublicKey, amountLp: bigint, lpPosition: PublicKey, minPtOut?: bigint, minSyOut?: bigint, tokenSyWithdrawer?: PublicKey, tokenPtWithdrawer?: PublicKey }): Promise<{ ixs: TransactionInstruction[], setupIxs: TransactionInstruction[] }>
+```
+
+#### ixAddLiquidity
+Add liquidity to existing position (not separately documented — see SDK source).
+
+#### ixModifyMarketSetting
+Admin: modify CLMM market parameters.
+```
+market.ixModifyMarketSetting({ signer: PublicKey, adminAction: MarketAdminAction }): TransactionInstruction
+```
+
+#### ixMarketAccureEmissions
+Accrue farm emissions for an LP position.
+```
+market.ixMarketAccureEmissions({ owner: PublicKey, lpPosition: PublicKey }): TransactionInstruction
+```
+
+#### ixAddFarm
+Admin: add farm emission to market.
+```
+market.ixAddFarm({ signer: PublicKey, farmMint: PublicKey, farmTokenProgram: PublicKey, emissionsRate: bigint, untilTimestamp: number, farmTokenSrc?: PublicKey, feePayer?: PublicKey }): { ixs: TransactionInstruction[], setupIxs: TransactionInstruction[] }
+```
+
+#### ixModifyFarm
+Admin: modify farm emission parameters.
+```
+market.ixModifyFarm({ signer: PublicKey, farmMint: PublicKey, farmTokenProgram: PublicKey, newRate: bigint, untilTimestamp: number, farmTokenSrc?: PublicKey }): { ixs: TransactionInstruction[] }
+```
+
+### Read Methods
+
+- `market.getPtAndSyOnWithdrawLiquidity(position, liquidityToRemove?): { pt: bigint, sy: bigint }`
+- `await market.getUserLpPositions(owner: PublicKey, market: PublicKey): Promise<LpPositionCLMM[]>`
+- `await market.reload(connection?): Promise<MarketThree>`
+
+### Properties
+
+- `market.vault: Vault`
+- `market.mintSy: PublicKey`
+- `market.mintPt: PublicKey`
+- `market.mintYt: PublicKey`
+- `market.syBalance: bigint`
+- `market.ptBalance: bigint`
+- `market.lpBalance: bigint`
+- `market.currentSyExchangeRate: number`
+- `market.secondsRemaining: number`
+- `market.addressLookupTable: PublicKey`
+- `market.emissions: Emission[]`
+
+---
+
+## Orderbook
+
+Load: `const orderbook = await Orderbook.load(LOCAL_ENV, connection, orderbookAddress)`
+
+### Static Methods
+
+- `Orderbook.load(env: Environment, connection: Connection, address: PublicKey, options?: OrderbookLoadOptions, vault?: Vault): Promise<Orderbook>`
+
+### Instruction Methods
+
+#### ixPostOffer (low-level)
+Post limit order. Caller manages token accounts.
+```
+orderbook.ixPostOffer({ trader: PublicKey, price: number, amount: BN, offerType: OfferType, offerOption: OfferOptions, virtualOffer: boolean, expirySeconds: number, mintSy: PublicKey, ptSrc?: PublicKey, ytSrc?: PublicKey, sySrc?: PublicKey }): TransactionInstruction
+```
+
+#### ixMarketOffer (low-level)
+Execute market order. Caller manages token accounts.
+```
+orderbook.ixMarketOffer({ trader: PublicKey, maxPriceApy: number, amount: BN, minAmountOut: BN, offerType: OfferType, virtualOffer: boolean, mintSy: PublicKey, ptSrc?: PublicKey, ytSrc?: PublicKey, sySrc?: PublicKey }): TransactionInstruction
+```
+
+#### ixRemoveOffer (low-level)
+Cancel limit order.
+```
+orderbook.ixRemoveOffer({ trader: PublicKey, offerIdx: number, mintSy: PublicKey, ptSrc?: PublicKey, ytSrc?: PublicKey, sySrc?: PublicKey }): TransactionInstruction
+```
+
+#### ixWrapperPostOffer
+Post limit order with auto account setup and SY wrapping.
+```
+await orderbook.ixWrapperPostOffer({ trader: PublicKey, price: number, amount: BN, offerType: OfferType, offerOption: OfferOptions, virtualOffer: boolean, expirySeconds: number, mintSy: PublicKey, ptSrc?: PublicKey, ytSrc?: PublicKey, sySrc?: PublicKey, tokenBaseTrader?: PublicKey }): Promise<{ ix: TransactionInstruction, setupIxs: TransactionInstruction[] }>
+```
+
+#### ixWrapperMarketOffer
+Execute market order with auto account setup.
+```
+await orderbook.ixWrapperMarketOffer({ trader: PublicKey, maxPriceApy: number, amount: BN, offerType: OfferType, minAmountOut: BN, virtualOffer: boolean, mintSy: PublicKey, ptSrc?: PublicKey, ytSrc?: PublicKey, sySrc?: PublicKey, tokenBaseTrader?: PublicKey }): Promise<{ ix: TransactionInstruction, setupIxs: TransactionInstruction[] }>
+```
+
+#### ixWrapperRemoveOffer
+Cancel offer with auto SY redeem to base.
+```
+await orderbook.ixWrapperRemoveOffer({ trader: PublicKey, offerIdx: number, mintSy: PublicKey, ptSrc?: PublicKey, ytSrc?: PublicKey, sySrc?: PublicKey, tokenBaseTrader?: PublicKey }): Promise<TransactionInstruction>
+```
+
+#### ixWrapperCollectInterest
+Collect accrued interest from YT in open sell orders.
+```
+await orderbook.ixWrapperCollectInterest({ trader: PublicKey, mintSy: PublicKey, sySrc?: PublicKey, tokenBaseTrader?: PublicKey }): Promise<TransactionInstruction>
+```
+
+#### ixWrapperWithdrawFunds
+Withdraw PT, YT, SY from orderbook escrow.
+```
+await orderbook.ixWrapperWithdrawFunds({ trader: PublicKey, mintSy: PublicKey, ptAmount: ClaimAmount, ytAmount: ClaimAmount, syAmount: ClaimAmount, ptSrc?: PublicKey, ytSrc?: PublicKey, sySrc?: PublicKey, tokenBaseTrader?: PublicKey }): Promise<TransactionInstruction>
+```
+
+#### ixSetConfigurationOptions
+Admin: update orderbook configuration.
+```
+orderbook.ixSetConfigurationOptions({ admin: PublicKey, configurationOptions: ConfigurationOptions }): TransactionInstruction
+```
+
+#### ixCollectAdminEmission
+Admin: collect emission rewards.
+```
+await orderbook.ixCollectAdminEmission({ emissionEscrow: PublicKey, index: number, amount: ClaimAmount, treasuryEmissionTokenAccount: PublicKey, tokenEmissionAdmin: PublicKey }): Promise<TransactionInstruction>
+```
+
+#### ixRemoveExpiredOffers
+Admin: batch cleanup expired offers.
+```
+await orderbook.ixRemoveExpiredOffers({ admin: PublicKey }): Promise<TransactionInstruction>
+```
+
+### Read Methods
+
+- `orderbook.getOffers(): Offer[]` — All active offers
+- `orderbook.getUserOpenOrders(user: PublicKey): Offer[]` — User's active orders
+- `orderbook.getUserBalances(user: PublicKey): { pt: string, yt: string, sy: string, stakedYt: string, staged: string }` — User escrow balances
+- `orderbook.getQuote({ priceApy?: number, inAmount: number, direction: QuoteDirection, unixNow: number, syExchangeRate: number }): { outAmount: number, makerFees: number, takerFees: number }` — Trade quote
+- `await orderbook.reload(conn?): Promise<Orderbook>`
+
+### Properties
+
+- `orderbook.mintPt: PublicKey`
+- `orderbook.mintYt: PublicKey`
+- `orderbook.secondsRemaining: number`
+- `orderbook.makerFeeRate: number`
+- `orderbook.takerFeeRate: number`
+- `orderbook.flavor`
+
+### Types
+
+Types and helpers are imported from `@exponent-labs/exponent-orderbook-client`:
+- `OfferType: OfferType.SellYt | OfferType.BuyYt`
+- `OfferOptions: offerOptions("FillOrKill", [boolean])`
+- `QuoteDirection: BASE_TO_YT | BASE_TO_PT | YT_TO_BASE | PT_TO_BASE | SY_TO_YT | SY_TO_PT | YT_TO_SY | PT_TO_SY` (from @exponent-labs/exponent-sdk)
+- `Offer: { type: OfferType, priceApy: number, amount: number, userEscrow: PublicKey, expiryAt: number, createdAt: number, isVirtual: boolean, offerIndex: number }`
+
+---
+
+## Router
+
+Load: `const router = await Router.load(connection, { env: LOCAL_ENV, orderbookParams: [...], clmmParams: [...] })`
+
+### Static Methods
+
+- `Router.load(connection: Connection, args: { vault?: Vault, env: Environment, legacyMarketsParams?: { address: PublicKey, options?: MarketLoadOptions }[], orderbookParams?: { address: PublicKey, options?: OrderbookLoadOptions }[], clmmParams?: { marketThreeAddress: PublicKey }[] }): Promise<Router>`
+
+### Instance Methods
+
+- `await router.refresh(): Promise<Router>` — Refresh all market states
+- `router.getQuote(params: { direction: RouterQuoteDirection, inAmount: number, syExchangeRate: number }): Quote | null` — Best quote across all venues
+
+---
+
+## YtPosition
+
+Load: `const ytPos = await YtPosition.load(LOCAL_ENV, connection, address)`
+
+### Static Methods
+
+- `YtPosition.load(env: Environment, connection: Connection, address: PublicKey, vault?: Vault): Promise<YtPosition>`
+- `YtPosition.loadByOwner(env: Environment, connection: Connection, owner: PublicKey, vault: Vault): Promise<YtPosition>`
+- `YtPosition.loadAllByOwner(env: Environment, connection: Connection, owner: PublicKey, vaults: (Vault | PublicKey)[]): Promise<YtPosition[]>`
+
+### Instance Methods
+
+- `ytPos.ixDepositYt({ amount: bigint, ytSrc?: PublicKey }): TransactionInstruction`
+- `ytPos.ixWithdrawYt({ amount: bigint, ytDst?: PublicKey }): TransactionInstruction`
+- `ytPos.ixStageYield({ payer: PublicKey }): TransactionInstruction`
+- `ytPos.ixCollectInterest({ signer: PublicKey, syDst?: PublicKey, amount?: bigint }): TransactionInstruction`
+- `ytPos.ixCollectEmission({ owner: PublicKey, emissionIndex: number, emissionDst?: PublicKey, amount?: bigint }): TransactionInstruction`
+- `ytPos.getClaimableInterest(currentIndex: number): number`
+- `ytPos.getClaimableEmissions(): { mint: PublicKey, amount: number }[]`
+
+### Properties
+
+- `ytPos.ytBalance: bigint`
+- `ytPos.owner: PublicKey`
+- `ytPos.stagedInterest: bigint`
+
+---
+
+## LpPosition (Legacy Market)
+
+Load: `const lpPos = await LpPosition.load(LOCAL_ENV, connection, address)`
+
+### Static Methods
+
+- `LpPosition.load(env: Environment, connection: Connection, address: PublicKey, market?: Market): Promise<LpPosition>`
+- `LpPosition.loadAllByOwner(env: Environment, connection: Connection, owner: PublicKey, markets: (Market | PublicKey)[]): Promise<LpPosition[]>`
+
+### Instance Methods
+
+- `await lpPos.ixDepositLp(amount: bigint): Promise<TransactionInstruction>`
+- `await lpPos.ixWithdrawLp(amount: bigint): Promise<TransactionInstruction>`
+- `await lpPos.claimableFarmEmissions(mint: PublicKey): Promise<number | null>`
+- `await lpPos.getClaimableMarketEmissions(): Promise<number[]>`
+
+### Properties
+
+- `lpPos.lpBalance: bigint`
+- `lpPos.owner: PublicKey`
+- `lpPos.marketAddress: PublicKey`
+
+---
+
+## Environment
+
+```typescript
+import { LOCAL_ENV } from "@exponent-labs/exponent-sdk";
+
+// LOCAL_ENV contains:
+// coreProgramId: ExponentnaRg3CQbW6dqQNZKXp7gtZ9DGMp1cwC4HAS7
+// marginfiSyProgramId: XPMfipyhcbq3DBvgvxkbZY7GekwmGNJLMD3wdiCkBc7
+// kaminoSyProgramId: XPK1ndTK1xrgRg99ifvdPP1exrx8D1mRXTuxBkkroCx
+// jitoRestakingSyProgramId: XPJitopeUEhMZVF72CvswnwrS2U2akQvk5s26aEfWv2
+// perenaSyProgramId: XPerenaJPyvnjseLCn7rgzxFEum6zX1k89C13SPTyGZ
+// genericSyProgramId: XP1BRLn8eCYSygrd8er5P4GKdzqKbC3DLoSsS5UYVZy
+```
+
+---
+
+## Utility Exports
+
+- `calcPriceInAssetsByAPYPt(apy: number, secondsRemaining: number): number` — Convert APY to PT asset price
+- `getOfferType(offer): OfferType` — Extract offer type
+- `getOfferTypeFromTradeDirection(direction): OfferType` — Convert trade direction to offer type
+- `getTradeFeesForTakerOffer(...): number` — Calculate taker fees
+- `getTradeFeesForMakerOffer(...): number` — Calculate maker fees
+- `makeSyPosition(flavor, ...): SyPosition` — Create SY position for a specific flavor
+- `EventDecoder` — Anchor-based event decoder for transaction logs
+- `CodamaEventDecoder` — Anchor-free event decoder using Codama codecs

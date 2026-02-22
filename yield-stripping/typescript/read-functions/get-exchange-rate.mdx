@@ -1,0 +1,56 @@
+---
+title: Get Exchange Rate
+description: Read vault properties including SY exchange rate and maturity
+---
+
+The `Vault` class exposes several getter properties for reading market state after loading. No additional RPC calls are required — these read from the locally loaded vault state.
+
+## Usage
+
+```typescript
+import { Vault, LOCAL_ENV } from "@exponent-labs/exponent-sdk";
+import { Connection, PublicKey } from "@solana/web3.js";
+
+const connection = new Connection("https://api.mainnet-beta.solana.com");
+const vault = await Vault.load(LOCAL_ENV, connection, vaultAddress);
+
+// SY exchange rate
+console.log("Exchange rate:", vault.currentSyExchangeRate);
+
+// Maturity info
+console.log("Expiration timestamp:", vault.expirationTimestamp);
+console.log("Expiration date:", vault.expirationDate);
+
+// Token mints
+console.log("PT mint:", vault.mintPt.toBase58());
+console.log("YT mint:", vault.mintYt.toBase58());
+console.log("SY mint:", vault.mintSy.toBase58());
+
+// SY balance held in the vault
+console.log("SY balance:", vault.syBalance);
+```
+
+## Available Properties
+
+| Property                  | Type        | Description                                                   |
+| ------------------------- | ----------- | ------------------------------------------------------------- |
+| `currentSyExchangeRate`   | `number`    | Current SY to underlying exchange rate                        |
+| `expirationTimestamp`      | `number`    | UNIX timestamp (seconds) at which the vault expires           |
+| `expirationDate`           | `Date`      | JavaScript `Date` at which the vault expires                  |
+| `mintPt`                   | `PublicKey`  | PT token mint address                                        |
+| `mintYt`                   | `PublicKey`  | YT token mint address                                        |
+| `mintSy`                   | `PublicKey`  | SY token mint address                                        |
+| `syBalance`                | `bigint`    | Total SY balance held in the vault's escrow                   |
+| `authority`                | `PublicKey`  | Vault authority PDA                                          |
+| `escrowSy`                 | `PublicKey`  | SY escrow token account                                      |
+| `escrowYt`                 | `PublicKey`  | YT escrow token account                                      |
+| `addressLookupTable`       | `PublicKey`  | Address lookup table for the vault                           |
+
+## Refreshing State
+
+To fetch the latest on-chain state, call `reload`:
+
+```typescript
+await vault.reload(connection);
+console.log("Updated rate:", vault.currentSyExchangeRate);
+```

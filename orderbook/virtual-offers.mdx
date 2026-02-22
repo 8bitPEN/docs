@@ -1,0 +1,82 @@
+---
+title: Virtual Offers
+description: Virtual offers enable shared liquidity between PT and YT on the Exponent orderbook
+---
+
+Virtual offers allow the orderbook to share liquidity between PT and YT pairs. All orders are internally quoted in YT. When a trader wants to trade PT, their order is marked as "virtual" and the orderbook handles the conversion using atomic [strip and merge](/home/learn/token-lifecycle) operations.
+
+## Available Routes
+
+All four routes share the same underlying liquidity:
+
+| Route   | `offerType`        | `virtualOffer` | Description        |
+| ------- | ------------------ | -------------- | ------------------ |
+| SY → YT | `OfferType.BuyYt`  | `false`        | Exchange SY for YT |
+| YT → SY | `OfferType.SellYt` | `false`        | Exchange YT for SY |
+| SY → PT | `OfferType.SellYt` | `true`         | Exchange SY for PT |
+| PT → SY | `OfferType.BuyYt`  | `true`         | Exchange PT for SY |
+
+## How It Works
+
+### Strip (SY → PT + YT)
+
+When a taker buys PT (virtual `SellYt`), the orderbook:
+
+1. Takes SY from the taker
+2. Strips SY into PT + YT
+3. Gives PT to the taker
+4. Uses the YT to fill against existing YT sell orders
+
+```
+Taker wants: PT        Taker provides: SY
+
+Orderbook executes:
+  SY → Strip → PT + YT
+  PT → Taker
+  YT → Matches against SellYT orders
+```
+
+### Merge (PT + YT → SY)
+
+When a taker sells PT (virtual `BuyYt`), the orderbook:
+
+1. Takes PT from the taker
+2. Obtains YT from matched buy orders
+3. Merges PT + YT into SY
+4. Gives SY to the taker
+
+```
+Taker wants: SY        Taker provides: PT
+
+Orderbook executes:
+  PT from Taker + YT from orderbook → Merge → SY
+  SY → Taker
+```
+
+### Direct YT Trading
+
+Non-virtual orders trade YT directly against counter-orders — no strip or merge required.
+
+## Using Virtual Offers in the SDK
+
+Set `virtualOffer: true` when posting or executing orders for PT:
+
+```typescript
+import * as exponentOrderbook from "@exponent-labs/exponent-orderbook-client";
+
+// Post a virtual order to buy PT (SY → PT)
+const { ix, setupIxs } = await orderbook.ixWrapperPostOffer({
+  trader: wallet.publicKey,
+  price: 5.0,
+  amount: new BN(1_000_000_000),
+  offerType: exponentOrderbook.OfferType.SellYt,
+  offerOption: exponentOrderbook.offerOptions("FillOrKill", [false]),
+  virtualOffer: true,
+  expirySeconds: 3600,
+  mintSy: syMintAddress,
+});
+```
+
+<Tip>
+Use [getQuote](/orderbook/typescript/read-functions/get-quote) with `QuoteDirection.SY_TO_PT` or `QuoteDirection.PT_TO_SY` to preview virtual order execution before submitting.
+</Tip>

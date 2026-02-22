@@ -1,0 +1,97 @@
+# Exponent Protocol
+
+> Solana yield-stripping protocol. Decomposes yield-bearing assets into Principal Tokens (PT) and Yield Tokens (YT) via Standardized Yield (SY) wrappers. Single SDK package: `@exponent-labs/exponent-sdk`. Three trading venues: Yield Stripping (vault), CLMM (concentrated liquidity AMM), and Orderbook (limit orders). All prices use implied APY with continuous compounding: P_PT = e^(-APY × t).
+
+## SDK
+
+- Package: @exponent-labs/exponent-sdk
+- Install: npm install @exponent-labs/exponent-sdk
+- Language: TypeScript
+- Chain: Solana
+- License: AGPL-3.0
+
+## Programs
+
+- exponent_core: ExponentnaRg3CQbW6dqQNZKXp7gtZ9DGMp1cwC4HAS7
+- exponent_clmm: GvHPnJqothHhg5hyTDstNcGEjD8nJL9MeRsU1R6PUc1m
+- exponent_orderbook: ExpRUPxMSwYYGjt1eoa2NonhKKrsFB1AQ4vZ6ujCHviP
+- marginfi_sy: XPMfipyhcbq3DBvgvxkbZY7GekwmGNJLMD3wdiCkBc7
+- kamino_sy: XPK1ndTK1xrgRg99ifvdPP1exrx8D1mRXTuxBkkroCx
+- jito_restaking_sy: XPJitopeUEhMZVF72CvswnwrS2U2akQvk5s26aEfWv2
+- perena_sy: XPerenaJPyvnjseLCn7rgzxFEum6zX1k89C13SPTyGZ
+- generic_sy: XP1BRLn8eCYSygrd8er5P4GKdzqKbC3DLoSsS5UYVZy
+
+## Docs
+
+### Getting Started
+- [Overview](home/overview): Protocol overview, quick links to all SDKs
+- [Choosing a Protocol](home/choosing-a-protocol): Decision tree for Yield Stripping vs CLMM vs Orderbook
+
+### Learn
+- [Standardized Yield](home/learn/standardized-yield): What SY is, the exchange rate, 5 standard programs, instruction interface, discriminators
+- [Principal Token](home/learn/principal-token): PT as zero-coupon bond, pricing formula, backing mechanics, fixed-rate strategy
+- [Yield Token](home/learn/yield-token): YT yield accrual formula, leveraged exposure, time decay, deposit → stage → collect workflow
+- [Token Lifecycle](home/learn/token-lifecycle): Full strip → trade → yield → merge → redeem flow with concrete numbers
+- [Pricing & Math](home/learn/pricing-and-math): PT/YT pricing formulas, APY↔price conversion, fee decay model, arbitrage bounds
+- [Maturity](home/learn/maturity): Before/at/after maturity behavior, rate freeze, emergency mode, vault invariant
+- [Architecture](home/learn/architecture): 3 Solana programs, how they relate, SDK class mapping
+
+### Guides
+- [Integration Guide](home/integration-guide): Production code examples combining all three protocols
+- [AI & LLM Integration](home/ai-integration): How to use llms.txt, SKILL.md, and MCP with AI coding tools
+
+### Yield Stripping
+- [Overview](yield-stripping/overview): Strip SY into PT + YT, merge back, SDK classes (Vault, YtPosition)
+- [Concepts](yield-stripping/concepts): Emissions, YT yield collection workflow, Vault and YtPosition accounts
+- [SDK Quickstart](yield-stripping/sdk-quickstart): Full lifecycle: install → strip → deposit YT → stage → collect → merge
+- [Instructions](yield-stripping/typescript/instructions/overview): ixStripFromBase, ixMergeToBase, ixInitializeYieldPosition, ixCollectInterest, ixCollectEmission
+- [YtPosition Instructions](yield-stripping/typescript/yt-instructions/overview): ixDepositYt, ixWithdrawYt, ixStageYield, ixCollectInterest, ixCollectEmission
+- [Read Functions](yield-stripping/typescript/read-functions/overview): getExchangeRate, getYieldPosition, getClaimableInterest, getClaimableEmissions
+- [Raw Instructions](yield-stripping/raw-instructions/overview): Low-level on-chain instruction builders
+- [Account: Vault](yield-stripping/account-references/vault): On-chain vault state fields
+- [Account: YieldTokenPosition](yield-stripping/account-references/yield-token-position): YT position account fields
+
+### CLMM (Concentrated Liquidity Market Maker)
+- [Overview](clmm/overview): PT/SY AMM with APY-based ticks, dynamic fee decay, MarketThree class
+- [Concepts](clmm/concepts): Tick system, fee growth tracking, LP positions, swap mechanics, YT trading, farm emissions, status flags, escrow accounting
+- [SDK Quickstart](clmm/sdk-quickstart): Full lifecycle: install → buy/sell PT/YT → provide/withdraw liquidity
+- [Instructions](clmm/typescript/instructions/overview): ixWrapperBuyPt, ixWrapperSellPt, ixWrapperBuyYt, ixWrapperSellYt, ixWrapperProvideLiquidity, ixWithdrawLiquidityToBase
+- [Read Functions](clmm/typescript/read-functions/overview): getPoolInfo, getUserLpPositions, calculateClaimableFees, computeFeeInsideForRange, calculateHistoricalFeeApy
+- [Raw Instructions](clmm/raw-instructions/overview): Low-level on-chain instruction builders
+- [Account: Market](clmm/account-references/market): CLMM market account fields
+- [Account: LpPosition](clmm/account-references/lp-position): LP position account fields
+- [Account: Farm](clmm/account-references/farm): Farm emission account fields
+
+### Orderbook (Limit Orders)
+- [Overview](orderbook/overview): APY-priced limit order book with shared PT/YT liquidity
+- [Concepts](orderbook/concepts): Limit vs market orders, virtual offers, matching engine, interest accrual, escrows, fee structure
+- [Virtual Offers](orderbook/virtual-offers): How PT and YT share liquidity via atomic strip/merge
+- [SDK Quickstart](orderbook/sdk-quickstart): Full lifecycle: install → post offer → market offer → collect interest → withdraw
+- [Instructions](orderbook/typescript/instructions/overview): ixWrapperPostOffer, ixWrapperMarketOffer, ixWrapperRemoveOffer, ixWrapperCollectInterest, ixWrapperWithdrawFunds
+- [Read Functions](orderbook/typescript/read-functions/overview): getQuote, getUserBalances, getOpenOrders, getWithdrawableFunds
+- [Raw Instructions](orderbook/raw-instructions/overview): Low-level on-chain instruction builders
+- [Account: Orderbook](orderbook/account-references/orderbook): Orderbook account fields
+- [Account: Offer](orderbook/account-references/offer): Offer account fields
+
+## Key Classes
+
+- Vault: `await Vault.load(LOCAL_ENV, connection, address)` — Yield stripping vault. Strip SY into PT+YT, merge back, collect interest.
+- MarketThree: `await MarketThree.load(LOCAL_ENV, connection, address)` — CLMM pool. Buy/sell PT and YT, provide concentrated liquidity.
+- Orderbook: `await Orderbook.load(LOCAL_ENV, connection, address)` — Limit order book. Post offers at specific APY, market orders, virtual offers.
+- Router: `await Router.load(connection, { env, orderbookParams, clmmParams })` — Multi-venue aggregator. Best quote across orderbook and CLMM.
+- YtPosition: `await YtPosition.load(LOCAL_ENV, connection, address)` — Track YT balance, accrued interest, claimable emissions.
+
+## Flavors (Yield Sources)
+
+- marginfi: MarginFi lending (USDC, SOL, mSOL)
+- kamino: Kamino Klend lending vaults
+- jitoRestaking: Jito liquid staking / restaking
+- perena: Perena stablecoin pools
+- generic: Meteora, Adrena, Fragmetric, Sanctum, Jupiter Perps, Kamino Vault, and more
+
+## Optional
+
+- [llms-full.txt](llms-full.txt): Complete API reference with every method signature, parameter type, and return type
+- [SKILL.md](SKILL.md): Agent skill file with decision trees, setup patterns, constraints, and common mistakes
+- [AGENTS.md](AGENTS.md): Documentation editing instructions with terminology glossary, page templates, and style rules
+- [Programs](home/programs): All on-chain program addresses with SDK usage examples

@@ -1,0 +1,57 @@
+---
+title: Realloc Orderbook Account
+description: Low-level instruction to reallocate orderbook account size
+---
+
+# createReallocOrderbookAccountInstruction
+
+Builds a raw instruction to reallocate the orderbook account to accommodate more offers or data. This instruction increases the size of the orderbook account when needed.
+
+<Note>This instruction can be called by anyone who is willing to pay for the additional rent. It does not require admin authority.</Note>
+
+## Usage
+
+```typescript
+import { createReallocOrderbookAccountInstruction } from "@exponent-labs/exponent-orderbook-client";
+import { PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
+
+const ix = createReallocOrderbookAccountInstruction(
+  {
+    payer: payerPublicKey,
+    orderbook: orderbookAddress,
+    vault: vaultAddress,
+    systemProgram: SystemProgram.programId,
+    rent: SYSVAR_RENT_PUBKEY,
+  },
+  {
+    seedId: 0,
+  }
+);
+```
+
+## Accounts
+
+| Name | Type | Signer | Writable | Description |
+|------|------|--------|----------|-------------|
+| `payer` | `PublicKey` | Yes | Yes | Account paying for reallocation |
+| `orderbook` | `PublicKey` | No | Yes | Orderbook account to reallocate |
+| `vault` | `PublicKey` | No | No | Associated vault account |
+| `systemProgram` | `PublicKey` | No | No | System program |
+| `rent` | `PublicKey` | No | No | Rent sysvar |
+
+## Args
+
+| Name | Type | Description |
+|------|------|-------------|
+| `seedId` | `number` (u32) | Seed identifier for the orderbook account |
+
+## Returns
+
+`TransactionInstruction` — a Solana transaction instruction ready to be added to a transaction.
+
+## Notes
+
+- The payer will be charged the additional rent required for the increased account size
+- This instruction is typically needed when the orderbook reaches capacity for storing offers
+- The reallocation follows Solana's account reallocation rules and rent-exempt requirements
+- Anyone can call this instruction, making it a permissionless way to ensure orderbook capacity

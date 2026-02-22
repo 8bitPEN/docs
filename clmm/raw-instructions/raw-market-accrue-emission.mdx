@@ -1,0 +1,75 @@
+---
+title: Market Accrue Emission
+description: Low-level instruction to accrue farm emissions for an LP position
+---
+
+# createMarketAccrueEmissionInstruction
+
+Builds a raw instruction to accrue farm emissions for a liquidity provider position. This updates the internal accounting for all active farm emissions that the position is entitled to, based on the LP's share of liquidity and time elapsed since the last accrual.
+
+<Info>This instruction must be called before collecting emissions to ensure all pending rewards are calculated.</Info>
+
+## Usage
+
+```typescript
+import { createMarketAccrueEmissionInstruction } from "@exponent-labs/exponent-clmm-client";
+import { PublicKey, SystemProgram } from "@solana/web3.js";
+
+// Example: Accrue all pending emissions for an LP position
+const ix = createMarketAccrueEmissionInstruction({
+  owner: lpOwner.publicKey,
+  market: marketAddress,
+  ticks: ticksAccount,
+  lpPosition: lpPositionAccount,
+  addressLookupTable: lookupTableAddress,
+  syProgram: syProgramId,
+  systemProgram: SystemProgram.programId,
+  eventAuthority: eventAuthorityPda,
+  program: clmmProgramId,
+});
+```
+
+## Accounts
+
+This instruction uses a subset of the [Liquidity Accounts](/clmm/raw-instructions/common-accounts#liquidity-accounts): `owner`, `market`, `ticks`, `lpPosition`, `addressLookupTable`, `syProgram`, `systemProgram`, `eventAuthority`, and `program`.
+
+## Args
+
+This instruction takes no arguments.
+
+## Behavior
+
+The instruction:
+1. Fetches the current state of all active farm emissions in the market
+2. Calculates time-weighted emissions accrued since last update
+3. Updates the LP position's internal trackers for each emission token
+4. Stages the accrued tokens for collection
+
+The accrued amounts depend on:
+- LP position's share of liquidity in the active tick range
+- Time elapsed since last accrual
+- Emission rates for each active farm
+- Current tick position relative to LP position bounds
+
+## Returns
+
+Returns a `MarketAccrueEmissionEvent` containing:
+
+```typescript
+type MarketAccrueEmissionEvent = {
+  ownerAddress: PublicKey;
+  marketAddress: PublicKey;
+  lpPosition: PublicKey;
+  lpBalance: bigint;
+  lowerTick: number;
+  upperTick: number;
+  tokensOwedSy: bigint;
+  tokensOwedPt: bigint;
+  farms: PersonalYieldTrackers; // Updated emission trackers
+  shareTrackers: PrincipalShareTrackers;
+  feeInsideLastPt: bigint; // u128
+  feeInsideLastSy: bigint; // u128
+};
+```
+
+`TransactionInstruction` — a Solana transaction instruction ready to be added to a transaction.

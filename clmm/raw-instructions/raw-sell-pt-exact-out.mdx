@@ -1,0 +1,53 @@
+---
+title: Sell PT (Exact Out)
+description: Low-level instruction to sell PT and receive an exact amount of SY tokens
+---
+
+# createTradePtExactOutInstruction
+
+Sells PT tokens to receive an exact amount of SY tokens. This instruction uses `createTradePtExactOutInstruction` with `swapDirection: { sellPt: {} }` to sell PT on the CLMM market and receive a precise quantity of SY. The caller specifies the exact SY amount to receive, and an optional maximum PT input constraint can be set for slippage protection.
+
+## Usage
+
+```typescript
+import { createTradePtExactOutInstruction } from "@exponent-labs/exponent-clmm-client";
+import { PublicKey } from "@solana/web3.js";
+
+const ix = createTradePtExactOutInstruction({
+  trader: traderKeypair.publicKey,
+  market: new PublicKey("market..."),
+  ticks: new PublicKey("ticks..."),
+  tokenSyTrader: new PublicKey("tokenSyTrader..."),
+  tokenPtTrader: new PublicKey("tokenPtTrader..."),
+  tokenSyEscrow: new PublicKey("tokenSyEscrow..."),
+  tokenPtEscrow: new PublicKey("tokenPtEscrow..."),
+  addressLookupTable: new PublicKey("lookupTable..."),
+  tokenProgram: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
+  syProgram: new PublicKey("syProgram..."),
+  tokenFeeTreasurySy: new PublicKey("tokenFeeTreasurySy..."),
+  tokenFeeTreasuryPt: new PublicKey("tokenFeeTreasuryPt..."),
+  eventAuthority: new PublicKey("eventAuthority..."),
+  program: new PublicKey("program..."),
+  amountOut: 1_000_000n,
+  swapDirection: { sellPt: {} },
+  amountInConstraint: 1_100_000n,
+  priceSpotLimit: 1.05,
+});
+```
+
+## Accounts
+
+This instruction uses the [PT Swap Accounts](/clmm/raw-instructions/common-accounts#pt-swap-accounts).
+
+## Args
+
+| Name | Type | Description |
+|------|------|-------------|
+| amountOut | `u64` | The exact amount of SY tokens to receive |
+| swapDirection | `SwapDirection` | Set to `{ sellPt: {} }` to sell PT |
+| amountInConstraint | `u64` (optional) | The maximum amount of PT to spend as slippage protection |
+| priceSpotLimit | `f64` (optional) | The price limit for the trade |
+
+## Returns
+
+`TransactionInstruction` — a Solana transaction instruction ready to be added to a transaction.

@@ -1,0 +1,68 @@
+---
+title: Compute Fee Inside for Range
+description: Calculate fee growth inside a specific tick range
+---
+
+The `MarketThree.computeFeeInsideForRange()` static method computes the fee growth that has occurred inside a specified tick range. This is essential for calculating fees earned by liquidity positions.
+
+## Usage
+
+```typescript
+import { MarketThree } from "@exponent-labs/exponent-sdk";
+
+// Compute fee growth inside a tick range
+const { insideSy, insidePt } = MarketThree.computeFeeInsideForRange({
+  currentTickPrice: market.state.financials.currentSpotPrice,
+  lowerTickPrice: 1.05,  // Lower bound: 5% APY
+  upperTickPrice: 1.10,   // Upper bound: 10% APY
+  feeGrowthIndexGlobalPt: market.state.financials.feeGrowthIndexGlobalPt,
+  feeGrowthIndexGlobalSy: market.state.financials.feeGrowthIndexGlobalSy,
+  lowerTickOutsidePt: lowerTick.feeGrowthOutsidePt,
+  lowerTickOutsideSy: lowerTick.feeGrowthOutsideSy,
+  upperTickOutsidePt: upperTick.feeGrowthOutsidePt,
+  upperTickOutsideSy: upperTick.feeGrowthOutsideSy,
+});
+
+console.log("SY fee growth inside range:", insideSy);
+console.log("PT fee growth inside range:", insidePt);
+```
+
+## Parameters
+
+| Parameter                  | Type     | Required | Description                                                    |
+| -------------------------- | -------- | -------- | -------------------------------------------------------------- |
+| `currentTickPrice`         | `number` | Yes      | Current market price in format of 1 + percentage / 100         |
+| `lowerTickPrice`           | `number` | Yes      | Lower tick boundary price in format of 1 + percentage / 100    |
+| `upperTickPrice`           | `number` | Yes      | Upper tick boundary price in format of 1 + percentage / 100    |
+| `feeGrowthIndexGlobalPt`   | `bigint` | Yes      | Global PT fee growth index                                     |
+| `feeGrowthIndexGlobalSy`   | `bigint` | Yes      | Global SY fee growth index                                     |
+| `lowerTickOutsidePt`       | `bigint` | Yes      | PT fee growth outside the lower tick                           |
+| `lowerTickOutsideSy`       | `bigint` | Yes      | SY fee growth outside the lower tick                           |
+| `upperTickOutsidePt`       | `bigint` | Yes      | PT fee growth outside the upper tick                           |
+| `upperTickOutsideSy`       | `bigint` | Yes      | SY fee growth outside the upper tick                           |
+
+## Returns
+
+Returns an object with:
+
+```typescript
+{
+  insideSy: bigint;
+  insidePt: bigint;
+}
+```
+
+| Property   | Type     | Description                                        |
+| ---------- | -------- | -------------------------------------------------- |
+| `insideSy` | `bigint` | SY fee growth that occurred inside the tick range  |
+| `insidePt` | `bigint` | PT fee growth that occurred inside the tick range  |
+
+## Calculation Logic
+
+The method implements the Uniswap V3 formula for computing fee growth inside a range:
+
+- **If current price < lower price**: `inside = outside(lower) - outside(upper)`
+- **If current price >= upper price**: `inside = outside(upper) - outside(lower)`
+- **If current price is inside range**: `inside = global - outside(lower) - outside(upper)`
+
+This allows tracking of fees earned specifically within the position's active range.

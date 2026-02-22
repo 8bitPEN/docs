@@ -1,0 +1,43 @@
+---
+title: Initialize Yield Position
+description: Low-level instruction to initialize a yield position PDA
+---
+
+# createInitializeYieldPositionInstruction
+
+Builds a raw instruction to initialize a yield position PDA for a user. This must be called before the user can deposit YT into a yield position.
+
+## Usage
+
+```typescript
+import { createInitializeYieldPositionInstruction } from "@exponent-labs/exponent-core-client";
+import { PublicKey, SystemProgram } from "@solana/web3.js";
+
+const ix = createInitializeYieldPositionInstruction({
+  owner: wallet.publicKey,
+  vault: vaultAddress,
+  yieldPosition: yieldPositionPda,
+  systemProgram: SystemProgram.programId,
+  eventAuthority: eventAuthorityPda,
+  program: EXPONENT_CORE_PROGRAM_ID,
+});
+```
+
+## Accounts
+
+| Name | Type | Signer | Writable | Description |
+|------|------|--------|----------|-------------|
+| `owner` | `PublicKey` | Yes | Yes | The user initializing the position (pays rent) |
+| `vault` | `PublicKey` | No | No | Vault account |
+| `yieldPosition` | `PublicKey` | No | Yes | Yield position PDA to initialize |
+| `systemProgram` | `PublicKey` | No | No | System program |
+| `eventAuthority` | `PublicKey` | No | No | Event authority PDA |
+| `program` | `PublicKey` | No | No | Exponent Core program |
+
+## Args
+
+This instruction takes no arguments.
+
+## Returns
+
+`TransactionInstruction` — a Solana transaction instruction ready to be added to a transaction.

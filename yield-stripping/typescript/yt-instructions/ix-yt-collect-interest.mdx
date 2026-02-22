@@ -1,0 +1,55 @@
+---
+title: Collect Interest
+description: Collect staged interest from a yield position
+---
+
+The `ixCollectInterest` method on the `YtPosition` class creates a transaction instruction that collects staged interest (paid in SY) from the yield position.
+
+## Usage
+
+```typescript
+import { Vault, YtPosition, LOCAL_ENV } from "@exponent-labs/exponent-sdk";
+import { Connection, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
+
+const connection = new Connection("https://api.mainnet-beta.solana.com");
+const vault = await Vault.load(LOCAL_ENV, connection, vaultAddress);
+const ytPosition = await YtPosition.loadByOwner(LOCAL_ENV, connection, wallet.publicKey, vault);
+
+// Collect all staged interest
+const ix = ytPosition.ixCollectInterest({
+  signer: wallet.publicKey,
+});
+
+const tx = new Transaction().add(ix);
+const signature = await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+To collect a specific amount:
+
+```typescript
+const ix = ytPosition.ixCollectInterest({
+  signer: wallet.publicKey,
+  amount: 500_000n,
+});
+```
+
+## Required Parameters
+
+| Parameter | Type        | Description                       |
+| --------- | ----------- | --------------------------------- |
+| `signer`  | `PublicKey`  | The position owner (signer)       |
+
+## Optional Parameters
+
+| Parameter | Type        | Description                                            |
+| --------- | ----------- | ------------------------------------------------------ |
+| `syDst`   | `PublicKey`  | Destination SY token account. Defaults to signer's ATA |
+| `amount`  | `bigint`    | Specific amount to collect. Defaults to all available   |
+
+## Returns
+
+Returns a `TransactionInstruction` that transfers staged SY interest to the owner.
+
+<Note>
+You must [stage yield](/yield-stripping/typescript/yt-instructions/ix-stage-yield) before collecting. Staging and collecting can be combined in the same transaction.
+</Note>

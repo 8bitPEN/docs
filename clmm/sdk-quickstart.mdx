@@ -1,0 +1,211 @@
+---
+title: SDK Quickstart
+description: Get started with the Exponent CLMM SDK
+---
+
+Set up the Exponent SDK and walk through the complete CLMM lifecycle — from buying and selling PT/YT, to providing liquidity, withdrawing, and reading market state.
+
+## Installation
+
+<CodeGroup>
+```bash yarn
+yarn add @exponent-labs/exponent-sdk
+```
+```bash npm
+npm install @exponent-labs/exponent-sdk
+```
+```bash pnpm
+pnpm add @exponent-labs/exponent-sdk
+```
+</CodeGroup>
+
+## Setup
+
+```typescript
+import { MarketThree, LOCAL_ENV } from "@exponent-labs/exponent-sdk";
+import {
+  Connection,
+  PublicKey,
+  Transaction,
+  sendAndConfirmTransaction,
+  Keypair,
+} from "@solana/web3.js";
+
+const connection = new Connection("https://api.mainnet-beta.solana.com");
+const wallet = Keypair.fromSecretKey(/* your keypair */);
+const marketAddress = new PublicKey("...");
+
+const market = await MarketThree.load(LOCAL_ENV, connection, marketAddress);
+```
+
+## 1. Buy PT
+
+Use `ixWrapperBuyPt` to buy PT (Principal Tokens) using base assets. This wraps the base into SY and swaps SY for PT in a single atomic operation.
+
+```typescript
+const { ixs, setupIxs } = await market.ixWrapperBuyPt({
+  owner: wallet.publicKey,
+  minPtOut: 1_000_000_000n,   // minimum PT to receive
+  baseIn: 1_100_000_000n,     // base asset to spend
+});
+
+const tx = new Transaction().add(...setupIxs, ...ixs);
+await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+## 2. Sell PT
+
+Use `ixWrapperSellPt` to sell PT back for base assets. This swaps PT for SY and redeems SY for base in one transaction.
+
+```typescript
+const { ixs, setupIxs } = await market.ixWrapperSellPt({
+  owner: wallet.publicKey,
+  amount: 1_000_000_000n,     // PT to sell
+  minBaseOut: 900_000_000n,   // minimum base to receive
+});
+
+const tx = new Transaction().add(...setupIxs, ...ixs);
+await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+## 3. Buy YT
+
+Use `ixWrapperBuyYt` to buy YT (Yield Tokens) using base assets. This wraps base into SY, strips SY into PT and YT, and sells the excess PT back — all atomically.
+
+```typescript
+const { ixs, setupIxs } = await market.ixWrapperBuyYt({
+  owner: wallet.publicKey,
+  ytOut: 1_000_000_000n,      // YT to receive
+  maxBaseIn: 1_200_000_000n,  // maximum base to spend
+});
+
+const tx = new Transaction().add(...setupIxs, ...ixs);
+await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+## 4. Sell YT
+
+Use `ixWrapperSellYt` to sell YT back for base assets. This buys PT with SY, merges PT and YT back into SY, and redeems SY for base.
+
+```typescript
+const { ixs, setupIxs } = await market.ixWrapperSellYt({
+  owner: wallet.publicKey,
+  amount: 1_000_000_000n,     // YT to sell
+  minBaseOut: 900_000_000n,   // minimum base to receive
+});
+
+const tx = new Transaction().add(...setupIxs, ...ixs);
+await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+## 5. Provide Liquidity
+
+Use `ixWrapperProvideLiquidity` to provide liquidity from base assets within a specified APY range. This wraps base into SY, strips into PT and YT, adds PT liquidity, and returns YT and LP tokens.
+
+```typescript
+const { ixs, setupIxs, signers } = await market.ixWrapperProvideLiquidity({
+  depositor: wallet.publicKey,
+  amountBase: 10_000_000_000n,  // base asset to deposit
+  minLpOut: 9_000_000_000n,     // minimum LP tokens to receive
+  lowerTickApy: 0.05,           // 5% APY lower bound
+  upperTickApy: 0.15,           // 15% APY upper bound
+});
+
+const tx = new Transaction().add(...setupIxs, ...ixs);
+await sendAndConfirmTransaction(connection, tx, [wallet, ...signers]);
+```
+
+<Warning>
+The `signers` array contains the generated LP position keypair. You **must** include it when signing the transaction, otherwise the transaction will fail.
+</Warning>
+
+<Tip>
+The `lowerTickApy` and `upperTickApy` parameters are decimal numbers — use `0.05` for 5% APY, not `500` or `50000`.
+</Tip>
+
+## 6. Withdraw Liquidity
+
+Use `ixWithdrawLiquidityToBase` to withdraw an LP position back to base assets. You need the LP position's public key, which you can obtain from `getUserLpPositions`.
+
+```typescript
+const { ixs, setupIxs } = await market.ixWithdrawLiquidityToBase({
+  owner: wallet.publicKey,
+  amountLp: 9_000_000_000n,        // LP tokens to withdraw
+  minBaseOut: 8_500_000_000n,       // minimum base to receive
+  lpPosition: lpPositionPublicKey,  // from getUserLpPositions
+});
+
+const tx = new Transaction().add(...setupIxs, ...ixs);
+await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+<Note>
+The `lpPosition` parameter is the public key of your LP position account. See step 7 to learn how to retrieve it.
+</Note>
+
+## 7. Check LP Positions
+
+Use `getUserLpPositions` to retrieve all LP positions for a wallet in a specific market.
+
+```typescript
+const { lpPositions } = await market.getUserLpPositions(
+  wallet.publicKey,
+  marketAddress,
+);
+
+for (const positions of lpPositions) {
+  for (const pos of positions) {
+    console.log("Position:", pos.publicKey.toBase58());
+    console.log("LP Balance:", pos.account.lpBalance);
+    console.log("Lower Tick:", pos.account.lowerTickIdx);
+    console.log("Upper Tick:", pos.account.upperTickIdx);
+    console.log("Unclaimed PT fees:", pos.account.tokensOwedPt);
+    console.log("Unclaimed SY fees:", pos.account.tokensOwedSy);
+  }
+}
+```
+
+## 8. Calculate Withdrawal Amounts
+
+Use `getPtAndSyOnWithdrawLiquidity` to preview how much PT and SY you would receive when withdrawing a position.
+
+```typescript
+const result = market.getPtAndSyOnWithdrawLiquidity(pos.account);
+
+console.log("PT to receive:", result.ptOut);
+console.log("SY to receive:", result.syOut);
+```
+
+<Tip>
+You can pass an optional second parameter to calculate a partial withdrawal: `market.getPtAndSyOnWithdrawLiquidity(position, partialLpAmount)`.
+</Tip>
+
+## 9. Reading Market State
+
+The `MarketThree` instance exposes getter properties for reading on-chain state:
+
+```typescript
+// Token mints
+console.log("PT Mint:", market.mintPt.toBase58());
+console.log("SY Mint:", market.mintSy.toBase58());
+console.log("YT Mint:", market.mintYt.toBase58());
+
+// Market balances
+console.log("PT Balance:", market.ptBalance);
+console.log("SY Balance:", market.syBalance);
+console.log("LP Balance:", market.lpBalance);
+
+// Market parameters
+console.log("SY Exchange Rate:", market.currentSyExchangeRate);
+console.log("Seconds Remaining:", market.secondsRemaining);
+console.log("Status Flags:", market.statusFlags);
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Core Concepts" href="/clmm/concepts" />
+  <Card title="Instructions" href="/clmm/typescript/instructions/overview" />
+  <Card title="Read Functions" href="/clmm/typescript/read-functions/overview" />
+  <Card title="Account References" href="/clmm/account-references/market" />
+</CardGroup>

@@ -1,0 +1,88 @@
+---
+title: "Maturity"
+description: "What happens before, at, and after a vault reaches maturity — rate freezing, post-maturity behavior, and emergency mode"
+---
+
+Every vault has a fixed maturity date. It is defined at creation by `start_ts + duration` and stored on the vault account as `expiration_ts`. This timestamp governs which operations are available and how yield is calculated.
+
+## Before Maturity
+
+While `current_time < expiration_ts`, the vault is fully active:
+
+- `final_sy_exchange_rate` updates on every vault operation, tracking the latest rate from the underlying yield source
+- All operations are available --- strip, merge, deposit YT, collect yield
+- [YT](/home/learn/yield-token) yield calculations use the continuously-updating `final_sy_exchange_rate`
+
+The [exchange rate](/home/learn/standardized-yield#the-exchange-rate) grows over time as the underlying protocol accrues interest. Each operation reads the fresh rate via CPI and updates the vault's stored values.
+
+## At Maturity
+
+When `current_time >= expiration_ts`:
+
+- **`final_sy_exchange_rate` freezes** --- it stops updating and becomes the permanent rate used for all YT yield calculations
+- [PT](/home/learn/principal-token) becomes redeemable for its SY backing at the frozen rate
+- [YT](/home/learn/yield-token) stops accruing new yield
+
+The frozen rate is the last value of `final_sy_exchange_rate` observed before (or at) the moment the vault crossed its `expiration_ts`. All subsequent yield math references this snapshot.
+
+## After Maturity
+
+Once maturity has passed:
+
+- **Post-maturity SY appreciation goes to the treasury** --- any further rate growth beyond the frozen `final_sy_exchange_rate` is tracked in `vault.treasury_sy`
+- **Post-maturity emission rewards go to `EmissionInfo.treasury_emission`**
+- Users can still merge PT + YT, collect staged yield, and withdraw
+- New strip operations are typically disabled
+- **Orderbook**: new offers are rejected and matching is disabled
+
+```
+Vault State Before Maturity          Vault State After Maturity
+─────────────────────────            ──────────────────────────
+current_time < expiration_ts         current_time >= expiration_ts
+
+final_sy_exchange_rate = 1.10        final_sy_exchange_rate = 1.10 ← FROZEN
+(updating continuously)
+                                     Current SY rate = 1.12
+                                     Excess = 1.12 - 1.10 = 0.02
+                                     → treasury_sy receives excess
+```
+
+## Emergency Mode
+
+The vault enters emergency mode when the SY [exchange rate](/home/learn/standardized-yield#the-exchange-rate) drops below its all-time high:
+
+<Warning>
+Emergency mode activates automatically when:
+
+```
+emergency_mode = all_time_high_sy_exchange_rate > last_seen_sy_exchange_rate
+```
+
+This can happen if the underlying yield source experiences a loss (e.g., a lending pool liquidation event).
+</Warning>
+
+What happens in emergency mode:
+
+- **Interest staging is paused** --- `earn_sy_interest()` returns early without calculating new yield. This prevents incorrect yield calculations during rate drops.
+- **Emissions continue to accrue normally** --- emission indexes are independent of the SY exchange rate.
+- **Existing staged yield can still be collected** --- only new staging is paused.
+- **Resolves automatically** --- when the rate recovers above the all-time high, interest staging resumes.
+
+Emergency mode is a safety mechanism that protects [PT](/home/learn/principal-token) backing. Without it, a rate drop could cause the vault to over-allocate SY as interest, leaving insufficient backing for PT redemptions.
+
+## Vault Invariant
+
+The vault maintains a fundamental accounting invariant at all times:
+
+```
+total_sy_in_escrow >= sy_for_pt + treasury_sy + uncollected_sy
+```
+
+| Component | Description |
+|-----------|-------------|
+| `sy_for_pt` | SY reserved to back all outstanding [PT](/home/learn/principal-token). Recalculated on every operation based on the current [exchange rate](/home/learn/standardized-yield#the-exchange-rate). |
+| `treasury_sy` | Protocol fees (from `interest_bps_fee` on yield collection) plus post-maturity SY appreciation. |
+| `uncollected_sy` | Yield that has been staged for [YT](/home/learn/yield-token) holders but not yet collected. Increases when yield is staged, decreases when collected. |
+| Free SY | The unallocated remainder (`total_sy_in_escrow` minus the three components above). Only becomes allocated when someone calls `ixStageYield`. |
+
+This invariant ensures the vault is always solvent: PT holders can always redeem, staged yield can always be collected, and treasury funds are always available.

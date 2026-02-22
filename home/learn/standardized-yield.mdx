@@ -1,0 +1,56 @@
+---
+title: "SY: Standardized Yield"
+description: "How Exponent wraps yield-bearing assets from different protocols into a common interface"
+---
+
+## What Is SY?
+
+Different DeFi protocols each use different token standards and interest mechanics. Before yield stripping can occur, Exponent wraps yield-bearing assets from these protocols into a common interface called **SY (Standardized Yield)**.
+
+Each supported protocol has a dedicated SY program that handles minting, redeeming, depositing, and withdrawing under a single unified interface. Exponent currently has SY adapters for **Marginfi**, **Kamino Lend**, **Jito Restaking**, and **Perena**, plus a generic adapter that supports additional protocols like Meteora, Fragmetric, and Jupiter. Because every SY program exposes the same interface, the vault's stripping logic is completely protocol-agnostic — it doesn't need to know which yield source it's working with.
+
+Once wrapped as SY, tokens can be [stripped](/home/learn/token-lifecycle) into [PT (Principal Token)](/home/learn/principal-token) and [YT (Yield Token)](/home/learn/yield-token). The relationship `value(1 PT) + value(1 YT) = value(1 SY)` always holds — when it diverges on the market, arbitrage restores the balance.
+
+## The Exchange Rate
+
+SY has an exchange rate that represents how much underlying base asset one SY token is worth. It grows over time as the underlying protocol accrues yield, and drives all minting, redemption, and pricing across Exponent:
+
+```
+base_amount = sy_amount × exchange_rate
+```
+
+For example, if the exchange rate is 1.05, then 100 SY tokens are worth 105 USDC.
+
+The rate starts at approximately 1.0 when a vault is created and increases as the underlying yield source earns interest:
+
+| Time | Exchange Rate | 100 SY is worth |
+|------|:---:|---|
+| Day 0 | 1.00 | 100 USDC |
+| Day 90 | 1.025 | 102.50 USDC |
+| Day 180 | 1.05 | 105.00 USDC |
+| Day 365 | 1.10 | 110.00 USDC |
+
+When you mint SY, you receive fewer SY tokens than the base you put in (because each SY is worth more than 1 base unit). When you redeem, the rate has grown further, so you get back more base than you originally deposited.
+
+To read the current exchange rate in code, use `vault.currentSyExchangeRate` — see [Get Exchange Rate](/yield-stripping/typescript/read-functions/get-exchange-rate).
+
+## How SY Conversion Works
+
+![SY Conversion Flow](/images/home/sy-conversion-flow.png)
+
+Depositing 1,000 USDC at a rate of 1.05 yields 952.38 SY. As yield accrues and the rate grows to 1.10, redeeming those same SY tokens returns 1,047.62 USDC — a profit driven entirely by the exchange rate appreciation.
+
+<Tip>
+Most users never interact with SY programs directly. The SDK's `ixStripFromBase` and `ixMergeToBase` methods handle wrapping and unwrapping automatically as part of stripping and merging.
+</Tip>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Strip, Trade, and Redeem" icon="arrows-spin" href="/home/learn/token-lifecycle">
+    Follow 1,000 USDC through the full strip, trade, and merge flow
+  </Card>
+  <Card title="SDK Quickstart" icon="code" href="/yield-stripping/sdk-quickstart">
+    Start building with the yield stripping SDK
+  </Card>
+</CardGroup>

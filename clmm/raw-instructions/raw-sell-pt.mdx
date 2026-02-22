@@ -1,0 +1,53 @@
+---
+title: Sell PT
+description: Low-level instruction to sell PT tokens for base assets
+---
+
+# createSellPtInstruction
+
+Builds a raw instruction to sell PT tokens for base assets. This instruction handles SY redemption to the base asset internally via remaining accounts, making it a convenience wrapper that combines the sell-PT and redeem-SY steps into a single instruction.
+
+## Usage
+
+```typescript
+import { createSellPtInstruction } from "@exponent-labs/exponent-clmm-client";
+import { PublicKey, SystemProgram } from "@solana/web3.js";
+
+const ix = createSellPtInstruction({
+  seller: sellerKeypair.publicKey,
+  market: marketAddress,
+  tokenSyTrader: sellerSyTokenAccount,
+  tokenPtTrader: sellerPtTokenAccount,
+  tokenSyEscrow: marketSyEscrow,
+  tokenPtEscrow: marketPtEscrow,
+  addressLookupTable: lookupTableAddress,
+  tokenProgram: tokenProgramId,
+  syProgram: syProgramId,
+  tokenFeeTreasurySy: feeTreasurySyAccount,
+  tokenFeeTreasuryPt: feeTreasuryPtAccount,
+  ticks: ticksAccount,
+  eventAuthority: eventAuthorityPda,
+  program: clmmProgramId,
+  amountPt: 1_000_000_000n,
+  minBaseAmount: 900_000_000n,
+  priceSpotLimit: 0.95,
+  redeemSyRemAccountsUntil: 5,
+});
+```
+
+## Accounts
+
+This instruction uses the [PT Swap Accounts](/clmm/raw-instructions/common-accounts#pt-swap-accounts).
+
+## Args
+
+| Name | Type | Description |
+|------|------|-------------|
+| `amountPt` | `u64` | Amount of PT tokens to sell |
+| `minBaseAmount` | `u64` | Minimum amount of base asset to receive |
+| `priceSpotLimit` | `f64` (optional) | Price limit for anti-sandwich protection |
+| `redeemSyRemAccountsUntil` | `u8` | Number of remaining accounts used for the SY redemption CPI |
+
+## Returns
+
+`TransactionInstruction` — a Solana transaction instruction ready to be added to a transaction.

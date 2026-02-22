@@ -1,0 +1,57 @@
+---
+title: Withdraw Liquidity Classic
+description: Withdraw an LP position and receive PT and base assets separately
+---
+
+The `ixWithdrawLiquidityClassic` method on the `MarketThree` class withdraws liquidity from the CLMM pool. Unlike `ixWithdrawLiquidityToBase` which converts everything to base assets, this method returns the PT and SY components separately — the SY portion is redeemed for base, while PT tokens are returned directly to the withdrawer.
+
+## Usage
+
+```typescript
+import { MarketThree, LOCAL_ENV } from "@exponent-labs/exponent-sdk";
+import { Connection, PublicKey, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
+
+const connection = new Connection("https://api.mainnet-beta.solana.com");
+const market = await MarketThree.load(LOCAL_ENV, connection, marketAddress);
+
+const { ixs, setupIxs } = await market.ixWithdrawLiquidityClassic({
+  owner: wallet.publicKey,
+  amountLp: 9_000_000_000n,
+  lpPosition: lpPositionPublicKey,
+});
+
+const tx = new Transaction().add(...setupIxs, ...ixs);
+const signature = await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+<Tip>
+Use `market.getPtAndSyOnWithdrawLiquidity(position)` to preview the PT and SY amounts you would receive before withdrawing.
+</Tip>
+
+## Required Parameters
+
+| Parameter    | Type        | Description                                    |
+| ------------ | ----------- | ---------------------------------------------- |
+| `owner`      | `PublicKey` | The owner's wallet public key                  |
+| `amountLp`   | `bigint`    | Amount of LP tokens to withdraw                |
+| `lpPosition` | `PublicKey` | Public key of the LP position account          |
+
+## Optional Parameters
+
+| Parameter             | Type        | Description                                                    |
+| --------------------- | ----------- | -------------------------------------------------------------- |
+| `tokenSyWithdrawer`   | `PublicKey` | Intermediate SY token account. Defaults to owner's ATA         |
+| `tokenYtWithdrawer`   | `PublicKey` | Intermediate YT token account. Defaults to owner's ATA         |
+| `tokenPtWithdrawer`   | `PublicKey` | Destination PT token account. Defaults to owner's ATA          |
+| `tokenBaseWithdrawer` | `PublicKey` | Destination base token account. Defaults to owner's ATA        |
+
+## Returns
+
+Returns a `Promise<PreparedInstruction>` with the following structure:
+
+```typescript
+{
+  ixs: TransactionInstruction[],      // Main instructions to execute
+  setupIxs: TransactionInstruction[]  // Setup instructions for creating ATAs
+}
+```

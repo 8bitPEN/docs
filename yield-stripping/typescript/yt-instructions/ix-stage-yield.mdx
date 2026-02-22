@@ -1,0 +1,42 @@
+---
+title: Stage Yield
+description: Stage accrued yield before collecting interest or emissions
+---
+
+The `ixStageYield` method on the `YtPosition` class creates a transaction instruction that stages accrued yield. This computes earned interest and emissions based on the current SY exchange rate and moves them into the position's staged balance.
+
+<Warning>
+You must call `ixStageYield` before collecting interest or emissions. Without staging, there is nothing to collect.
+</Warning>
+
+## Usage
+
+```typescript
+import { Vault, YtPosition, LOCAL_ENV } from "@exponent-labs/exponent-sdk";
+import { Connection, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
+
+const connection = new Connection("https://api.mainnet-beta.solana.com");
+const vault = await Vault.load(LOCAL_ENV, connection, vaultAddress);
+const ytPosition = await YtPosition.loadByOwner(LOCAL_ENV, connection, wallet.publicKey, vault);
+
+const ix = ytPosition.ixStageYield({
+  payer: wallet.publicKey,
+});
+
+const tx = new Transaction().add(ix);
+const signature = await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+## Required Parameters
+
+| Parameter | Type        | Description                           |
+| --------- | ----------- | ------------------------------------- |
+| `payer`   | `PublicKey`  | Transaction payer (signer)            |
+
+## Returns
+
+Returns a `TransactionInstruction` that reads the current SY exchange rate via CPI and updates the position's staged interest and emission trackers.
+
+<Tip>
+You can stage and collect in the same transaction by adding both instructions sequentially.
+</Tip>

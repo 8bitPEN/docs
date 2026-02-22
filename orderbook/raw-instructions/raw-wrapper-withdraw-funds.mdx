@@ -1,0 +1,78 @@
+---
+title: Wrapper Withdraw Funds
+description: Low-level instruction to withdraw idle funds with automatic SY redemption
+---
+
+# createWrapperWithdrawFundsInstruction
+
+Builds a raw instruction that withdraws idle funds (PT, YT, or SY) from the orderbook with automatic SY redemption to the base asset. This combines the withdrawal and SY redemption steps atomically.
+
+## Usage
+
+```typescript
+import { createWrapperWithdrawFundsInstruction, amount } from "@exponent-labs/exponent-orderbook-client";
+import { PublicKey, SystemProgram } from "@solana/web3.js";
+
+const ix = createWrapperWithdrawFundsInstruction(
+  {
+    trader: wallet.publicKey,
+    orderbook: orderbookAddress,
+    vault: vaultAddress,
+    cpiAccountOrderbook: cpiAccountsOrderbook,
+    tokenEscrowYt: orderbookEscrowYt,
+    tokenEscrowSy: orderbookEscrowSy,
+    tokenEscrowPt: orderbookEscrowPt,
+    tokenSyTrader: userSyTokenAccount,
+    tokenYtTrader: userYtTokenAccount,
+    tokenPtTrader: userPtTokenAccount,
+    systemProgram: SystemProgram.programId,
+    syProgram: syProgramId,
+    tokenProgram: TOKEN_PROGRAM_ID,
+    exponentCore: EXPONENT_CORE_PROGRAM_ID,
+    addressLookupTable: vaultLookupTable,
+    eventAuthority: eventAuthorityPda,
+    program: EXPONENT_ORDERBOOK_PROGRAM_ID,
+  },
+  {
+    ptAmountOptional: amount("Some", [100_000n]),
+    ytAmountOptional: amount("All"),
+    syAmountOptional: amount("All"),
+    redeemSyAccountsUntil: 0,
+  }
+);
+```
+
+## Accounts
+
+| Name | Type | Signer | Writable | Description |
+|------|------|--------|----------|-------------|
+| `trader` | `PublicKey` | Yes | No | The trader withdrawing funds |
+| `orderbook` | `PublicKey` | No | Yes | Orderbook account |
+| `vault` | `PublicKey` | No | Yes | Vault account |
+| `cpiAccountOrderbook` | `PublicKey` | No | No | CPI accounts orderbook |
+| `tokenEscrowYt` | `PublicKey` | No | Yes | Orderbook YT escrow account |
+| `tokenEscrowSy` | `PublicKey` | No | Yes | Orderbook SY escrow account |
+| `tokenEscrowPt` | `PublicKey` | No | Yes | Orderbook PT escrow account |
+| `tokenSyTrader` | `PublicKey` | No | Yes | Trader's SY token account |
+| `tokenYtTrader` | `PublicKey` | No | Yes | Trader's YT token account |
+| `tokenPtTrader` | `PublicKey` | No | Yes | Trader's PT token account |
+| `systemProgram` | `PublicKey` | No | No | System program |
+| `syProgram` | `PublicKey` | No | No | SY program |
+| `tokenProgram` | `PublicKey` | No | No | SPL Token program |
+| `exponentCore` | `PublicKey` | No | No | Exponent Core program |
+| `addressLookupTable` | `PublicKey` | No | No | Vault address lookup table |
+| `eventAuthority` | `PublicKey` | No | No | Event authority PDA |
+| `program` | `PublicKey` | No | No | Exponent Orderbook program |
+
+## Args
+
+| Name | Type | Description |
+|------|------|-------------|
+| `ptAmountOptional` | `Amount` | PT amount to withdraw: `amount("All")` or `amount("Some", [value])` |
+| `ytAmountOptional` | `Amount` | YT amount to withdraw: `amount("All")` or `amount("Some", [value])` |
+| `syAmountOptional` | `Amount` | SY amount to withdraw: `amount("All")` or `amount("Some", [value])` |
+| `redeemSyAccountsUntil` | `number` | Index into remaining accounts for SY redemption CPI accounts |
+
+## Returns
+
+`TransactionInstruction` — a Solana transaction instruction ready to be added to a transaction.

@@ -1,0 +1,42 @@
+---
+title: "PT: Principal Token"
+description: "How Principal Tokens let you lock in a fixed rate on any yield source"
+---
+
+## What Is PT?
+
+PT (Principal Token) is the fixed-rate side of a stripped yield position. Think of it as a zero-coupon bond: you buy it at a discount and redeem it at face value when it [matures](/home/learn/maturity). The discount you get is your fixed return — locked in at the moment you buy, regardless of what the underlying yield does afterward.
+
+When [SY](/home/learn/standardized-yield) is [stripped](/home/learn/token-lifecycle), it splits into PT (capturing the principal) and [YT](/home/learn/yield-token) (capturing the variable yield). PT holders are completely insulated from yield fluctuations.
+
+## Key Properties
+
+- **Trades below face value** before maturity
+- **Redeemable 1:1** for the underlying at maturity
+- **Price appreciates** toward 1.00 as maturity approaches
+- **Fixed yield** — insulated from variable rate fluctuations
+
+## How the Discount Works
+
+PT always trades at a discount that reflects the market's implied rate. The closer to maturity, the smaller the discount:
+
+| Days to Maturity | PT Price | You pay for 1,000 PT | At maturity you receive |
+|------------------|:--------:|:--------------------:|:-----------------------:|
+| 180 | 0.95 | 950 SY | 1,000 SY |
+| 90 | 0.975 | 975 SY | 1,000 SY |
+| 0 (maturity) | 1.00 | — | 1,000 SY |
+
+Buying 1,000 PT at 0.95 and holding to maturity nets you 50 SY profit — a fixed return locked in at purchase, no matter what happens to the underlying rate.
+
+For the exact pricing formulas (continuous compounding, implied APY, SY-denominated prices), see [Pricing & Math](/home/learn/pricing-and-math).
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Pricing & Math" icon="calculator" href="/home/learn/pricing-and-math">
+    Full formulas for PT pricing, implied APY, and fixed rate calculations
+  </Card>
+  <Card title="SDK Quickstart" icon="code" href="/yield-stripping/sdk-quickstart">
+    Start building with the yield stripping SDK
+  </Card>
+</CardGroup>

@@ -1,0 +1,53 @@
+---
+title: Wrapper Buy PT
+description: Low-level instruction to buy PT from base assets in a single atomic operation
+---
+
+# createBuyPtInstruction
+
+Buys PT tokens from base assets in a single atomic operation. This is an alias for the buyPt instruction which handles the base-to-SY conversion internally via CPI remaining accounts. The caller supplies base tokens and receives PT directly, without needing to manually mint SY first.
+
+## Usage
+
+```typescript
+import { createBuyPtInstruction } from "@exponent-labs/exponent-clmm-client";
+import { PublicKey } from "@solana/web3.js";
+
+const ix = createBuyPtInstruction({
+  buyer: buyerKeypair.publicKey,
+  market: new PublicKey("market..."),
+  tokenSyTrader: new PublicKey("tokenSyTrader..."),
+  tokenPtTrader: new PublicKey("tokenPtTrader..."),
+  tokenSyEscrow: new PublicKey("tokenSyEscrow..."),
+  tokenPtEscrow: new PublicKey("tokenPtEscrow..."),
+  addressLookupTable: new PublicKey("lookupTable..."),
+  tokenProgram: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
+  syProgram: new PublicKey("syProgram..."),
+  ticks: new PublicKey("ticks..."),
+  tokenFeeTreasurySy: new PublicKey("tokenFeeTreasurySy..."),
+  tokenFeeTreasuryPt: new PublicKey("tokenFeeTreasuryPt..."),
+  eventAuthority: new PublicKey("eventAuthority..."),
+  program: new PublicKey("program..."),
+  minPtAmount: 950_000n,
+  baseAmount: 1_000_000n,
+  priceSpotLimit: 0.95,
+  mintSyRemAccountsUntil: 3,
+});
+```
+
+## Accounts
+
+This instruction uses the [PT Swap Accounts](/clmm/raw-instructions/common-accounts#pt-swap-accounts).
+
+## Args
+
+| Name | Type | Description |
+|------|------|-------------|
+| minPtAmount | `u64` | The minimum amount of PT tokens to receive |
+| baseAmount | `u64` | The amount of base asset to spend |
+| priceSpotLimit | `f64` (optional) | The price limit for the trade |
+| mintSyRemAccountsUntil | `u8` | The number of CPI remaining accounts used for SY minting |
+
+## Returns
+
+`TransactionInstruction` — a Solana transaction instruction ready to be added to a transaction.

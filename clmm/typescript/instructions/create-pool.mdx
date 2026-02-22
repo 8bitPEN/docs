@@ -1,0 +1,41 @@
+---
+title: Create Pool
+description: Initialize a new CLMM pool
+---
+
+The `createPool` instruction initializes a new concentrated liquidity pool on the Exponent CLMM.
+
+## Usage
+
+```typescript
+import { BN } from "@coral-xyz/anchor";
+import { PublicKey } from "@solana/web3.js";
+
+const { ix, setupIxs } = await clmm.createPool({
+  creator: wallet.publicKey,
+  tokenMintA: new PublicKey("..."),
+  tokenMintB: new PublicKey("..."),
+  initialPrice: 1.0,
+  feeTier: "standard",
+});
+
+const tx = new Transaction().add(...setupIxs, ix);
+const signature = await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+## Required Parameters
+
+| Parameter      | Type        | Description                                       |
+| -------------- | ----------- | ------------------------------------------------- |
+| `creator`      | `PublicKey` | The pool creator's wallet public key               |
+| `tokenMintA`   | `PublicKey` | Token A mint address                               |
+| `tokenMintB`   | `PublicKey` | Token B mint address                               |
+| `initialPrice` | `number`    | Starting price of token B in A terms               |
+| `feeTier`      | `string`    | Fee tier: "stable", "standard", or "volatile"      |
+
+## Returns
+
+Returns an object with:
+
+- `ix` - The `TransactionInstruction` that creates the pool
+- `setupIxs` - An array of setup instructions to run before `ix`

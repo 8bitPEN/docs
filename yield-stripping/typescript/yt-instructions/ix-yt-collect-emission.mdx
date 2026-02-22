@@ -1,0 +1,58 @@
+---
+title: Collect Emission
+description: Collect emission rewards from a yield position
+---
+
+The `ixCollectEmission` method on the `YtPosition` class creates a transaction instruction that collects a specific emission reward from the yield position. Emissions are auxiliary reward tokens (e.g., governance tokens) distributed to YT depositors.
+
+## Usage
+
+```typescript
+import { Vault, YtPosition, LOCAL_ENV } from "@exponent-labs/exponent-sdk";
+import { Connection, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
+
+const connection = new Connection("https://api.mainnet-beta.solana.com");
+const vault = await Vault.load(LOCAL_ENV, connection, vaultAddress);
+const ytPosition = await YtPosition.loadByOwner(LOCAL_ENV, connection, wallet.publicKey, vault);
+
+// Collect all of emission at index 0
+const ix = ytPosition.ixCollectEmission({
+  owner: wallet.publicKey,
+  emissionIndex: 0,
+});
+
+const tx = new Transaction().add(ix);
+const signature = await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+To collect a specific amount:
+
+```typescript
+const ix = ytPosition.ixCollectEmission({
+  owner: wallet.publicKey,
+  emissionIndex: 0,
+  amount: 1_000_000n,
+});
+```
+
+## Required Parameters
+
+| Parameter       | Type        | Description                                |
+| --------------- | ----------- | ------------------------------------------ |
+| `owner`         | `PublicKey`  | The position owner's wallet public key     |
+| `emissionIndex` | `number`     | Index of the emission to collect (0-based) |
+
+## Optional Parameters
+
+| Parameter     | Type        | Description                                                 |
+| ------------- | ----------- | ----------------------------------------------------------- |
+| `emissionDst` | `PublicKey`  | Destination emission token account. Defaults to owner's ATA |
+| `amount`      | `bigint`    | Specific amount to collect. Defaults to all available        |
+
+## Returns
+
+Returns a `TransactionInstruction` that transfers accrued emission rewards to the owner.
+
+<Tip>
+Use `ytPosition.getClaimableEmissions()` to check available emissions and their amounts before collecting.
+</Tip>

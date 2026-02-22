@@ -1,0 +1,67 @@
+---
+title: Market Order
+description: Execute a market order on the orderbook
+---
+
+The `ixWrapperMarketOffer` instruction executes a market order on the Exponent orderbook.
+
+## Usage
+
+```typescript
+import { BN } from "@coral-xyz/anchor";
+import { PublicKey } from "@solana/web3.js";
+import * as exponentOrderbook from "@exponent-labs/exponent-orderbook-client";
+
+const { ix, setupIxs } = await orderbook.ixWrapperMarketOffer({
+  // The trader's wallet public key
+  trader: wallet.publicKey,
+  // Maximum price in APY terms (e.g., 5.5 for 5.5% APY)
+  maxPriceApy: 5.5,
+  // The amount to trade in lamports
+  amount: new BN(1_000_000_000),
+  // The type of offer - buy or sell YT
+  offerType: exponentOrderbook.OfferType.BuyYt,
+  // Minimum amount to receive (slippage protection)
+  minAmountOut: new BN(990_000_000),
+  // Whether this is a virtual offer
+  virtualOffer: false,
+  // The SY token mint address
+  mintSy: syMintAddress,
+});
+
+// setupIxs[0] - Creates the PT associated token account for the trader
+// setupIxs[1] - Creates the YT associated token account for the trader
+// setupIxs[2] - Creates the SY associated token account for the trader
+// ix - Executes the market order
+```
+
+## Required Parameters
+
+| Parameter      | Type              | Description                                     |
+| -------------- | ----------------- | ----------------------------------------------- |
+| `trader`       | `PublicKey`       | The trader's wallet public key                  |
+| `maxPriceApy`  | `number`          | Maximum price in APY terms                      |
+| `amount`       | `BN`              | The amount to trade                             |
+| `offerType`    | `OfferType` | The type of offer (`OfferType.BuyYt` / `OfferType.SellYt`) |
+| `minAmountOut` | `BN`              | Minimum amount to receive (slippage protection) |
+| `virtualOffer` | `boolean`         | Whether this is a virtual offer                 |
+| `mintSy`       | `PublicKey`       | The SY token mint address                       |
+
+## Optional Parameters
+
+| Parameter         | Type        | Description                       |
+| ----------------- | ----------- | --------------------------------- |
+| `ptSrc`           | `PublicKey` | PT token source account           |
+| `ytSrc`           | `PublicKey` | YT token source account           |
+| `sySrc`           | `PublicKey` | SY token source account           |
+| `tokenBaseTrader` | `PublicKey` | Base token account for the trader |
+
+## Returns
+
+Returns an object with:
+
+- `ix` - The `TransactionInstruction` that executes the market order
+- `setupIxs` - An array of setup instructions to run before `ix`:
+  - `setupIxs[0]` - Creates the PT associated token account for the trader (if it doesn't exist)
+  - `setupIxs[1]` - Creates the YT associated token account for the trader (if it doesn't exist)
+  - `setupIxs[2]` - Creates the SY associated token account for the trader (if it doesn't exist)

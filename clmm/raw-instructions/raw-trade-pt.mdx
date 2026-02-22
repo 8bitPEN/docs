@@ -1,0 +1,53 @@
+---
+title: Trade PT
+description: Low-level instruction to execute an exact-in swap between PT and SY tokens
+---
+
+# createTradePtInstruction
+
+Builds a raw instruction to execute an exact-in swap between PT and SY tokens. The swap direction determines whether PT is being bought (SY in, PT out) or sold (PT in, SY out). An optional price limit provides anti-sandwich protection by reverting if the spot price moves beyond the specified threshold.
+
+## Usage
+
+```typescript
+import { createTradePtInstruction } from "@exponent-labs/exponent-clmm-client";
+import { PublicKey, SystemProgram } from "@solana/web3.js";
+
+const ix = createTradePtInstruction({
+  trader: traderKeypair.publicKey,
+  market: marketAddress,
+  ticks: ticksAccount,
+  tokenSyTrader: traderSyTokenAccount,
+  tokenPtTrader: traderPtTokenAccount,
+  tokenSyEscrow: marketSyEscrow,
+  tokenPtEscrow: marketPtEscrow,
+  addressLookupTable: lookupTableAddress,
+  tokenProgram: tokenProgramId,
+  syProgram: syProgramId,
+  tokenFeeTreasurySy: feeTreasurySyAccount,
+  tokenFeeTreasuryPt: feeTreasuryPtAccount,
+  eventAuthority: eventAuthorityPda,
+  program: clmmProgramId,
+  amountIn: 1_000_000_000n,
+  swapDirection: { buyPt: {} },
+  amountOutConstraint: 900_000_000n,
+  priceSpotLimit: 1.05,
+});
+```
+
+## Accounts
+
+This instruction uses the [PT Swap Accounts](/clmm/raw-instructions/common-accounts#pt-swap-accounts).
+
+## Args
+
+| Name | Type | Description |
+|------|------|-------------|
+| `amountIn` | `u64` | Exact amount of input tokens |
+| `swapDirection` | `SwapDirection` | Direction of the swap: `BuyPt` or `SellPt` |
+| `amountOutConstraint` | `u64` (optional) | Minimum amount of output tokens to receive |
+| `priceSpotLimit` | `f64` (optional) | Price limit for anti-sandwich protection |
+
+## Returns
+
+`TransactionInstruction` — a Solana transaction instruction ready to be added to a transaction.

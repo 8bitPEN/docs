@@ -1,0 +1,40 @@
+---
+title: Get Claimable Interest
+description: Calculate claimable interest for a yield position
+---
+
+The `getClaimableInterest` method on the `YtPosition` class calculates the amount of interest available for collection, denominated in the base token.
+
+## Usage
+
+```typescript
+import { YtPosition, Vault, LOCAL_ENV } from "@exponent-labs/exponent-sdk";
+import { Connection, PublicKey } from "@solana/web3.js";
+
+const connection = new Connection("https://api.mainnet-beta.solana.com");
+const vault = await Vault.load(LOCAL_ENV, connection, vaultAddress);
+const ytPosition = await YtPosition.loadByOwner(LOCAL_ENV, connection, wallet.publicKey, vault);
+
+const claimableInterest = ytPosition.getClaimableInterest(vault.currentSyExchangeRate);
+
+console.log("Claimable interest (base):", claimableInterest);
+```
+
+## Parameters
+
+| Parameter      | Type     | Description                                        |
+| -------------- | -------- | -------------------------------------------------- |
+| `currentIndex` | `number` | The current SY exchange rate for the vault         |
+
+<Tip>
+  Use `vault.currentSyExchangeRate` for the `currentIndex` parameter. This ensures the calculation uses the latest exchange rate from the loaded vault state.
+</Tip>
+
+## Returns
+
+Returns a `number` representing the claimable interest in raw base token units. The calculation accounts for:
+
+- Accrued yield since the last update based on exchange rate changes
+- Previously staged interest
+- Protocol interest fees (deducted automatically)
+- Rounding adjustments (conservative, in favor of the protocol)

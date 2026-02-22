@@ -1,0 +1,66 @@
+---
+title: Common Accounts
+description: Shared account groups used across CLMM raw instructions
+---
+
+Raw instructions share common account groups. This page defines them once — individual instruction pages reference the relevant group and list only their additional accounts.
+
+## PT Swap Accounts
+
+Used by all PT trading instructions: [Trade PT](/clmm/raw-instructions/raw-trade-pt), [Trade PT Exact Out](/clmm/raw-instructions/raw-trade-pt-exact-out), [Buy PT](/clmm/raw-instructions/raw-buy-pt), [Sell PT](/clmm/raw-instructions/raw-sell-pt), [Buy PT Exact Out](/clmm/raw-instructions/raw-buy-pt-exact-out), [Sell PT Exact Out](/clmm/raw-instructions/raw-sell-pt-exact-out), [Wrapper Buy PT](/clmm/raw-instructions/raw-wrapper-buy-pt), [Wrapper Sell PT](/clmm/raw-instructions/raw-wrapper-sell-pt).
+
+| Name | Type | Signer | Writable | Description |
+|------|------|--------|----------|-------------|
+| `trader` | `PublicKey` | Yes | Yes | Wallet executing the trade (may be named `buyer` or `seller`) |
+| `market` | `PublicKey` | No | Yes | The CLMM market account |
+| `ticks` | `PublicKey` | No | Yes | The market tick array account |
+| `tokenSyTrader` | `PublicKey` | No | Yes | Trader's SY token account |
+| `tokenPtTrader` | `PublicKey` | No | Yes | Trader's PT token account |
+| `tokenSyEscrow` | `PublicKey` | No | Yes | Market SY escrow account |
+| `tokenPtEscrow` | `PublicKey` | No | Yes | Market PT escrow account |
+| `addressLookupTable` | `PublicKey` | No | No | Market address lookup table |
+| `tokenProgram` | `PublicKey` | No | No | SPL Token program |
+| `syProgram` | `PublicKey` | No | No | SY program |
+| `tokenFeeTreasurySy` | `PublicKey` | No | Yes | SY fee treasury account |
+| `tokenFeeTreasuryPt` | `PublicKey` | No | Yes | PT fee treasury account |
+| `eventAuthority` | `PublicKey` | No | No | Event authority PDA |
+| `program` | `PublicKey` | No | No | CLMM program ID |
+
+## YT Swap Accounts
+
+Used by all YT trading instructions: [Buy YT](/clmm/raw-instructions/raw-buy-yt), [Sell YT](/clmm/raw-instructions/raw-sell-yt), [Wrapper Buy YT](/clmm/raw-instructions/raw-wrapper-buy-yt), [Wrapper Sell YT](/clmm/raw-instructions/raw-wrapper-sell-yt).
+
+Includes all [PT Swap Accounts](#pt-swap-accounts) plus:
+
+| Name | Type | Signer | Writable | Description |
+|------|------|--------|----------|-------------|
+| `tokenYtTrader` | `PublicKey` | No | Yes | Trader's YT token account |
+| `tokenYtEscrow` | `PublicKey` | No | Yes | Market YT escrow account |
+| `exponentCoreProgram` | `PublicKey` | No | No | Exponent core program (for strip/merge CPI) |
+
+<Note>
+Wrapper YT instructions also include `systemProgram` and may include `depositYtAccountsUntil` or `redeemSyAccountsUntil` CPI routing parameters.
+</Note>
+
+## Liquidity Accounts
+
+Used by liquidity instructions: [Deposit Liquidity](/clmm/raw-instructions/raw-deposit-liquidity), [Add Liquidity](/clmm/raw-instructions/raw-add-liquidity), [Withdraw Liquidity](/clmm/raw-instructions/raw-withdraw-liquidity), and all wrapper liquidity instructions.
+
+| Name | Type | Signer | Writable | Description |
+|------|------|--------|----------|-------------|
+| `depositor` | `PublicKey` | Yes | Yes | Wallet providing/withdrawing liquidity (may be named `owner` or `withdrawer`) |
+| `market` | `PublicKey` | No | Yes | The CLMM market account |
+| `ticks` | `PublicKey` | No | Yes | The market tick array account |
+| `lpPosition` | `PublicKey` | Varies | Yes | LP position account (signer for new positions) |
+| `tokenPtSrc` | `PublicKey` | No | Yes | Depositor's PT token account (named `tokenPtDepositor` or `tokenPtWithdrawer` in wrappers) |
+| `tokenSySrc` | `PublicKey` | No | Yes | Depositor's SY token account (named `tokenSyDepositor` or `tokenSyWithdrawer` in wrappers) |
+| `tokenPtEscrow` | `PublicKey` | No | Yes | Market PT escrow account |
+| `tokenSyEscrow` | `PublicKey` | No | Yes | Market SY escrow account |
+| `addressLookupTable` | `PublicKey` | No | No | Market address lookup table |
+| `tokenProgram` | `PublicKey` | No | No | SPL Token program |
+| `syProgram` | `PublicKey` | No | No | SY program |
+| `systemProgram` | `PublicKey` | No | No | System program |
+| `eventAuthority` | `PublicKey` | No | No | Event authority PDA |
+| `program` | `PublicKey` | No | No | CLMM program ID |
+
+Wrapper liquidity instructions may additionally include: `tokenYtEscrow`, `tokenYtDepositor`, `mintYt`, `mintPt`, `exponentCoreProgram`, `rent`, `tokenFeeTreasurySy`, and `tokenFeeTreasuryPt` depending on whether they perform strip/merge or swap operations internally.

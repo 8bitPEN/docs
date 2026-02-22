@@ -1,0 +1,54 @@
+---
+title: Sell YT
+description: Low-level instruction to sell YT tokens for SY
+---
+
+# createSellYtInstruction
+
+Builds a raw instruction to sell YT tokens for SY. This instruction buys PT from the pool, merges the PT and YT back into SY, and returns the net SY to the trader. The process leverages the PT/SY AMM to determine the conversion ratio.
+
+## Usage
+
+```typescript
+import { createSellYtInstruction } from "@exponent-labs/exponent-clmm-client";
+import { PublicKey, SystemProgram } from "@solana/web3.js";
+
+const ix = createSellYtInstruction({
+  trader: traderKeypair.publicKey,
+  market: marketAddress,
+  ticks: ticksAccount,
+  tokenYtTrader: traderYtTokenAccount,
+  tokenPtTrader: traderPtTokenAccount,
+  tokenSyTrader: traderSyTokenAccount,
+  tokenSyEscrow: marketSyEscrow,
+  tokenPtEscrow: marketPtEscrow,
+  tokenYtEscrow: marketYtEscrow,
+  addressLookupTable: lookupTableAddress,
+  tokenFeeTreasurySy: feeTreasurySyAccount,
+  tokenFeeTreasuryPt: feeTreasuryPtAccount,
+  tokenProgram: tokenProgramId,
+  syProgram: syProgramId,
+  exponentCoreProgram: exponentCoreProgramId,
+  eventAuthority: eventAuthorityPda,
+  program: clmmProgramId,
+  ytIn: 1_000_000_000n,
+  minSyOut: 900_000_000n,
+  priceSpotLimit: 0.95,
+});
+```
+
+## Accounts
+
+This instruction uses the [YT Swap Accounts](/clmm/raw-instructions/common-accounts#yt-swap-accounts).
+
+## Args
+
+| Name | Type | Description |
+|------|------|-------------|
+| `ytIn` | `u64` | Amount of YT tokens to sell |
+| `minSyOut` | `u64` | Minimum amount of SY tokens to receive |
+| `priceSpotLimit` | `f64` (optional) | Price limit for anti-sandwich protection |
+
+## Returns
+
+`TransactionInstruction` — a Solana transaction instruction ready to be added to a transaction.

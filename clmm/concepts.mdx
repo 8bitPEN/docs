@@ -1,0 +1,92 @@
+---
+title: Core Concepts
+description: CLMM-specific concepts — tick system, fee model, YT trading, and key accounts
+---
+
+This page covers concepts specific to the Exponent CLMM. For shared protocol concepts, see:
+
+- [Implied APY Pricing](/home/learn/pricing-and-math) — How PT and YT prices derive from implied APY
+- [PT: Principal Token](/home/learn/principal-token) — PT mechanics, backing, fixed-rate strategy
+- [YT: Yield Token](/home/learn/yield-token) — YT mechanics, yield formula, leverage
+- [Strip & Merge](/home/learn/token-lifecycle) — The SY → PT + YT and PT + YT → SY operations
+- [Maturity](/home/learn/maturity) — Before/at/after maturity behavior
+
+---
+
+## APY-Based Tick System
+
+Unlike traditional CLMMs where ticks represent price points, the Exponent CLMM uses ticks keyed by **APY in basis points**. The tick key is scaled by `TICK_KEY_BASE_POINTS = 1e6`:
+
+$$
+\text{spot\_price}(\text{key}) = e^{\ln\!\left(1 + \frac{\text{key}}{10^6}\right)}
+$$
+
+For example, a tick key of `80000` corresponds to 8% APY. Ticks are stored in a red-black tree with a maximum of 100 active nodes. The `tick_space` parameter determines the minimum distance between tick boundaries.
+
+<Warning>
+Ticks represent APY levels, not price levels. A tick key of `50000` means 5% APY — not a price of 50,000.
+</Warning>
+
+---
+
+## Fee Model
+
+The CLMM uses a [time-weighted fee decay model](/home/learn/pricing-and-math#fee-decay-model) where fees decrease as maturity approaches. The protocol takes a cut of swap fees defined by `treasury_fee_bps`. Remaining fees accrue to LPs via Q64.64 fixed-point fee growth tracking — see the [MarketThree account reference](/clmm/account-references/market#fee-growth-tracking) for details.
+
+---
+
+## YT Trading
+
+Buying and selling YT involves multi-step atomic operations because YT cannot be directly traded against the CLMM pool (which only holds PT and SY).
+
+**Buy YT:**
+
+<Steps>
+  <Step title="Wrap base to SY">
+    Convert the user's base asset into SY tokens
+  </Step>
+  <Step title="Strip SY into PT + YT">
+    Decompose SY into PT and YT via the yield-stripping vault
+  </Step>
+  <Step title="Sell excess PT back for SY">
+    Swap the unwanted PT back into SY through the CLMM, keeping only the YT
+  </Step>
+</Steps>
+
+**Sell YT:**
+
+<Steps>
+  <Step title="Buy PT with SY">
+    Acquire enough PT by swapping SY through the CLMM
+  </Step>
+  <Step title="Merge PT + YT into SY">
+    Recombine PT and YT back into SY via the yield-stripping vault
+  </Step>
+  <Step title="Redeem SY for base">
+    Convert SY back to the base asset
+  </Step>
+</Steps>
+
+These operations are handled atomically by the wrapper instructions (`ixWrapperBuyYt`, `ixWrapperSellYt`).
+
+---
+
+## Swap Routing
+
+PT swaps route through active liquidity at the current tick. Two directions are supported: **SY → PT** (buying PT) and **PT → SY** (selling PT). Both exact-in and exact-out variants exist. An optional `priceSpotLimit` parameter provides anti-sandwich protection by aborting the swap if the price moves beyond the specified threshold.
+
+---
+
+## Key Accounts
+
+### MarketThree
+
+The on-chain account holding all CLMM state — token mints, escrows, tick configuration, financials, emissions, and status flags. See the [MarketThree Account Reference](/clmm/account-references/market).
+
+### LpPosition
+
+A per-user position account tracking LP balance, fee accruals, and farm emissions within a specific tick range. See the [LpPosition Account Reference](/clmm/account-references/lp-position).
+
+### LpFarm
+
+Manages liquidity mining rewards — up to 3 concurrent emission tokens distributed to LP providers proportionally. See the [LpFarm Account Reference](/clmm/account-references/farm).

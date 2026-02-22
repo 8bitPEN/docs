@@ -1,0 +1,64 @@
+---
+title: Wrapper Collect Interest
+description: Low-level instruction to collect accrued interest with automatic SY redemption
+---
+
+# createWrapperCollectInterestInstruction
+
+Builds a raw instruction that collects accrued interest from the orderbook with automatic SY redemption to the base asset. This combines the interest collection and SY redemption steps atomically.
+
+## Usage
+
+```typescript
+import { createWrapperCollectInterestInstruction } from "@exponent-labs/exponent-orderbook-client";
+import { PublicKey, SystemProgram } from "@solana/web3.js";
+
+const ix = createWrapperCollectInterestInstruction(
+  {
+    trader: wallet.publicKey,
+    orderbook: orderbookAddress,
+    vault: vaultAddress,
+    cpiAccountOrderbook: cpiAccountsOrderbook,
+    tokenEscrowSy: orderbookEscrowSy,
+    tokenSyTrader: userSyTokenAccount,
+    systemProgram: SystemProgram.programId,
+    syProgram: syProgramId,
+    tokenProgram: TOKEN_PROGRAM_ID,
+    exponentCore: EXPONENT_CORE_PROGRAM_ID,
+    addressLookupTable: vaultLookupTable,
+    eventAuthority: eventAuthorityPda,
+    program: EXPONENT_ORDERBOOK_PROGRAM_ID,
+  },
+  {
+    redeemSyAccountsUntil: 0,
+  }
+);
+```
+
+## Accounts
+
+| Name | Type | Signer | Writable | Description |
+|------|------|--------|----------|-------------|
+| `trader` | `PublicKey` | Yes | No | The trader collecting interest |
+| `orderbook` | `PublicKey` | No | Yes | Orderbook account |
+| `vault` | `PublicKey` | No | Yes | Vault account |
+| `cpiAccountOrderbook` | `PublicKey` | No | No | CPI accounts orderbook |
+| `tokenEscrowSy` | `PublicKey` | No | Yes | Orderbook SY escrow account |
+| `tokenSyTrader` | `PublicKey` | No | Yes | Trader's SY token account |
+| `systemProgram` | `PublicKey` | No | No | System program |
+| `syProgram` | `PublicKey` | No | No | SY program |
+| `tokenProgram` | `PublicKey` | No | No | SPL Token program |
+| `exponentCore` | `PublicKey` | No | No | Exponent Core program |
+| `addressLookupTable` | `PublicKey` | No | No | Vault address lookup table |
+| `eventAuthority` | `PublicKey` | No | No | Event authority PDA |
+| `program` | `PublicKey` | No | No | Exponent Orderbook program |
+
+## Args
+
+| Name | Type | Description |
+|------|------|-------------|
+| `redeemSyAccountsUntil` | `number` | Index into remaining accounts for SY redemption CPI accounts |
+
+## Returns
+
+`TransactionInstruction` — a Solana transaction instruction ready to be added to a transaction.

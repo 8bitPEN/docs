@@ -1,0 +1,85 @@
+---
+title: Withdraw Funds
+description: Low-level instruction to withdraw PT, YT, and SY tokens from the orderbook
+---
+
+# createWithdrawFundsInstruction
+
+Builds a raw instruction to withdraw PT, YT, and/or SY tokens that are held in the orderbook back to the trader's accounts.
+
+## Usage
+
+```typescript
+import { createWithdrawFundsInstruction, amount } from "@exponent-labs/exponent-orderbook-client";
+import { PublicKey } from "@solana/web3.js";
+
+const ix = createWithdrawFundsInstruction(
+  {
+    trader: wallet.publicKey,
+    orderbook: orderbookAddress,
+    vault: vaultAddress,
+    tokenEscrowYt: orderbookYtEscrow,
+    tokenEscrowSy: orderbookSyEscrow,
+    tokenEscrowPt: orderbookPtEscrow,
+    tokenSyTrader: userSyTokenAccount,
+    tokenYtTrader: userYtTokenAccount,
+    tokenPtTrader: userPtTokenAccount,
+    systemProgram: SYSTEM_PROGRAM_ID,
+    tokenProgram: TOKEN_2022_PROGRAM_ID,
+    syProgram: syProgramId,
+    exponentCore: EXPONENT_CORE_PROGRAM_ID,
+    addressLookupTable: vaultLookupTable,
+    cpiAccountOrderbook: cpiAccountsOrderbook,
+    eventAuthority: eventAuthorityPda,
+    program: EXPONENT_ORDERBOOK_PROGRAM_ID,
+  },
+  {
+    ptAmountOptional: amount("All"),
+    ytAmountOptional: amount("Some", [500_000n]),
+    syAmountOptional: amount("All"),
+  }
+);
+```
+
+## Accounts
+
+| Name | Type | Signer | Writable | Description |
+|------|------|--------|----------|-------------|
+| `trader` | `PublicKey` | Yes | No | The user withdrawing funds |
+| `orderbook` | `PublicKey` | No | Yes | Orderbook account |
+| `vault` | `PublicKey` | No | No | Vault account |
+| `tokenEscrowYt` | `PublicKey` | No | Yes | Orderbook YT escrow account |
+| `tokenEscrowSy` | `PublicKey` | No | Yes | Orderbook SY escrow account |
+| `tokenEscrowPt` | `PublicKey` | No | Yes | Orderbook PT escrow account |
+| `tokenSyTrader` | `PublicKey` | No | Yes | Trader SY token account |
+| `tokenYtTrader` | `PublicKey` | No | Yes | Trader YT token account |
+| `tokenPtTrader` | `PublicKey` | No | Yes | Trader PT token account |
+| `systemProgram` | `PublicKey` | No | No | System program |
+| `tokenProgram` | `PublicKey` | No | No | SPL Token 2022 program |
+| `syProgram` | `PublicKey` | No | No | SY program |
+| `exponentCore` | `PublicKey` | No | No | Exponent Core program |
+| `addressLookupTable` | `PublicKey` | No | No | Vault address lookup table |
+| `cpiAccountOrderbook` | `PublicKey` | No | No | CPI accounts orderbook |
+| `eventAuthority` | `PublicKey` | No | No | Event authority PDA |
+| `program` | `PublicKey` | No | No | Exponent Orderbook program |
+
+## Args
+
+| Name | Type | Description |
+|------|------|-------------|
+| `ptAmountOptional` | `Amount` | PT amount to withdraw: `amount("All")` or `amount("Some", [value])` |
+| `ytAmountOptional` | `Amount` | YT amount to withdraw: `amount("All")` or `amount("Some", [value])` |
+| `syAmountOptional` | `Amount` | SY amount to withdraw: `amount("All")` or `amount("Some", [value])` |
+
+### Amount Helper
+
+```typescript
+import { amount } from "@exponent-labs/exponent-orderbook-client";
+
+amount("All")                // withdraw everything available
+amount("Some", [500_000n])   // withdraw a specific amount
+```
+
+## Returns
+
+`TransactionInstruction` — a Solana transaction instruction ready to be added to a transaction.

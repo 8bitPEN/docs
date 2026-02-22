@@ -1,0 +1,74 @@
+---
+title: Liquidity Unit Price in Asset
+description: Calculate the price per unit of liquidity in underlying asset terms
+---
+
+The `liquidityUnitPriceInAsset()` method calculates the price per unit of liquidity in underlying asset terms, considering only the principal value (excluding fees) for a specific tick range.
+
+## Usage
+
+```typescript
+import { MarketThree, LOCAL_ENV } from "@exponent-labs/exponent-sdk";
+import { Connection } from "@solana/web3.js";
+
+const connection = new Connection("https://api.mainnet-beta.solana.com");
+const market = await MarketThree.load(LOCAL_ENV, connection, marketAddress);
+
+// Calculate liquidity unit price for a tick range
+const lowerTickKey = 500;  // 5% APY (500 basis points)
+const upperTickKey = 1000; // 10% APY (1000 basis points)
+
+const pricePerUnit = market.liquidityUnitPriceInAsset({
+  lowerTickKey,
+  upperTickKey,
+});
+
+console.log("Price per unit of liquidity:", pricePerUnit);
+
+// Optional: use custom ticks or SY exchange rate
+const customPrice = market.liquidityUnitPriceInAsset({
+  lowerTickKey,
+  upperTickKey,
+  ticksOverride: customTicksAccount,
+  syExchangeRateOverride: 1.05,
+});
+```
+
+## Parameters
+
+| Parameter                 | Type     | Required | Description                                                          |
+| ------------------------- | -------- | -------- | -------------------------------------------------------------------- |
+| `lowerTickKey`            | `number` | Yes      | Inclusive tick key for the left boundary (in basis points)           |
+| `upperTickKey`            | `number` | Yes      | Exclusive tick key for the right boundary (in basis points)          |
+| `ticksOverride`           | `Ticks`  | No       | Optional ticks account data (defaults to the instance state)         |
+| `syExchangeRateOverride`  | `number` | No       | Optional SY exchange rate (defaults to current flavor rate)          |
+
+## Returns
+
+Returns a `number` representing the price per unit of liquidity in underlying asset terms (principal only).
+
+Returns `0` if:
+- No ticks exist in the specified range
+- Total share supply is 0
+- `lowerTickKey >= upperTickKey` (throws error)
+
+## Calculation Details
+
+The method:
+
+1. Filters tick intervals within the specified range
+2. Aggregates `principalPt`, `principalSy`, and `principalShareSupply` across intervals
+3. Calculates PT asset value using time decay:
+   ```
+   ptAssetValuePerToken = exp(-timeFactor * currentSpotPrice)
+   ```
+4. Computes total principal value:
+   ```
+   principalValue = (principalPt * ptAssetValue) + (principalSy * syExchangeRate)
+   ```
+5. Returns price per unit:
+   ```
+   pricePerUnit = principalValue / totalShareSupply
+   ```
+
+This calculation excludes accrued fees and represents only the principal component of the liquidity position.

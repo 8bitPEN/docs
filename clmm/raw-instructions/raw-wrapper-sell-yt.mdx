@@ -1,0 +1,54 @@
+---
+title: Wrapper Sell YT
+description: Low-level instruction to sell YT tokens for base assets atomically
+---
+
+# createWrapperSellYtInstruction
+
+Sells YT tokens for base assets in a single atomic operation. This instruction buys PT on the market, merges the PT and YT back into SY, and then redeems the SY for the underlying base asset. The entire flow is executed atomically so the caller receives base tokens directly from their YT position.
+
+## Usage
+
+```typescript
+import { createWrapperSellYtInstruction } from "@exponent-labs/exponent-clmm-client";
+import { PublicKey } from "@solana/web3.js";
+
+const ix = createWrapperSellYtInstruction({
+  seller: sellerKeypair.publicKey,
+  market: new PublicKey("market..."),
+  tokenSyTrader: new PublicKey("tokenSyTrader..."),
+  tokenYtTrader: new PublicKey("tokenYtTrader..."),
+  tokenPtTrader: new PublicKey("tokenPtTrader..."),
+  tokenSyEscrow: new PublicKey("tokenSyEscrow..."),
+  tokenYtEscrow: new PublicKey("tokenYtEscrow..."),
+  tokenPtEscrow: new PublicKey("tokenPtEscrow..."),
+  marketAddressLookupTable: new PublicKey("lookupTable..."),
+  tokenProgram: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
+  syProgram: new PublicKey("syProgram..."),
+  tokenFeeTreasurySy: new PublicKey("tokenFeeTreasurySy..."),
+  tokenFeeTreasuryPt: new PublicKey("tokenFeeTreasuryPt..."),
+  ticks: new PublicKey("ticks..."),
+  exponentCoreProgram: new PublicKey("exponentCoreProgram..."),
+  eventAuthority: new PublicKey("eventAuthority..."),
+  program: new PublicKey("program..."),
+  ytAmount: 1_000_000n,
+  minBaseAmount: 950_000n,
+  redeemSyAccountsUntil: 3,
+});
+```
+
+## Accounts
+
+This instruction uses the [YT Swap Accounts](/clmm/raw-instructions/common-accounts#yt-swap-accounts).
+
+## Args
+
+| Name | Type | Description |
+|------|------|-------------|
+| ytAmount | `u64` | The amount of YT tokens to sell |
+| minBaseAmount | `u64` | The minimum amount of base asset to receive |
+| redeemSyAccountsUntil | `u8` | The number of CPI remaining accounts used for SY redemption |
+
+## Returns
+
+`TransactionInstruction` — a Solana transaction instruction ready to be added to a transaction.

@@ -1,0 +1,65 @@
+---
+title: Reading Market State
+description: Access CLMM market state via MarketThree getter properties
+---
+
+The `MarketThree` class exposes getter properties for reading on-chain market state. After loading a market, you can access token mints, balances, configuration, and time-related parameters directly.
+
+## Usage
+
+```typescript
+import { MarketThree, LOCAL_ENV } from "@exponent-labs/exponent-sdk";
+import { Connection, PublicKey } from "@solana/web3.js";
+
+const connection = new Connection("https://api.mainnet-beta.solana.com");
+const market = await MarketThree.load(LOCAL_ENV, connection, marketAddress);
+
+// Token mints
+console.log("PT Mint:", market.mintPt.toBase58());
+console.log("SY Mint:", market.mintSy.toBase58());
+console.log("YT Mint:", market.mintYt.toBase58());
+
+// Market balances
+console.log("PT Balance:", market.ptBalance);
+console.log("SY Balance:", market.syBalance);
+console.log("LP Balance:", market.lpBalance);
+
+// Time and rate
+console.log("SY Exchange Rate:", market.currentSyExchangeRate);
+console.log("Seconds Remaining:", market.secondsRemaining);
+
+// Status
+console.log("Status Flags:", market.statusFlags);
+```
+
+## Getter Properties
+
+| Property | Type | Description |
+| -------- | ---- | ----------- |
+| `mintPt` | `PublicKey` | PT token mint address |
+| `mintSy` | `PublicKey` | SY token mint address |
+| `mintYt` | `PublicKey` | YT token mint address |
+| `ptBalance` | `bigint` | PT tokens held in the market |
+| `syBalance` | `bigint` | SY tokens held in the market |
+| `lpBalance` | `bigint` | Total LP token supply |
+| `currentSyExchangeRate` | `number` | Current SY exchange rate from the underlying yield source |
+| `secondsRemaining` | `number` | Seconds until market expiration |
+| `statusFlags` | `number` | Bitmask of enabled operations |
+
+## Nested State Properties
+
+For deeper state access, use `market.state`:
+
+```typescript
+// Financial parameters
+const expiration = market.state.financials.expirationTs;
+
+// Configuration
+const tickSpace = market.state.configurationOptions.tickSpace;
+const feeRateRoot = market.state.configurationOptions.lnFeeRateRoot;
+const treasuryFeeBps = market.state.configurationOptions.treasuryFeeBps;
+```
+
+<Tip>
+Call `await market.reload()` to refresh the market state from on-chain data before reading properties.
+</Tip>

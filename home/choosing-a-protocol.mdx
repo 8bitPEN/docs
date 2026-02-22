@@ -1,0 +1,86 @@
+---
+title: Choosing Your SDK
+description: Pick the right Exponent SDK for your use case
+---
+
+Exponent has three core systems — **Yield Stripping**, **CLMM**, and **Orderbook**. Each serves a different purpose. Pick the one that matches what you're building.
+
+## What are you building?
+
+| I want to... | Use | |
+|---|---|---|
+| Split yield-bearing assets into PT + YT, lock a fixed rate, or get leveraged yield exposure | **Yield Stripping** | [Quickstart →](/yield-stripping/sdk-quickstart) |
+| Swap PT/YT instantly at market price, or provide concentrated liquidity for fees | **CLMM** | [Quickstart →](/clmm/sdk-quickstart) |
+| Place limit orders at a specific implied APY, with passive fills and YT yield accrual | **Orderbook** | [Quickstart →](/orderbook/sdk-quickstart) |
+
+## Comparison
+
+| | Yield Stripping | CLMM | Orderbook |
+|---|---|---|---|
+| **What it does** | Split yield-bearing assets into PT + YT | AMM for swapping PT and YT | Limit order book for PT and YT |
+| **Execution** | Instant | Instant | Instant (market) or queued (limit) |
+| **Pricing** | SY exchange rate | AMM curve (APY-based ticks) | Implied APY |
+| **Price impact** | None | Slippage on large trades | None (limit orders) |
+| **Fees** | Protocol fee on accrued yield | Dynamic swap fee (decays toward maturity) | Maker/taker fees (decay toward maturity) |
+| **Best for** | Creating PT/YT positions | Fast swaps, providing liquidity | Passive strategies, precise APY targeting |
+| **SDK class** | `Vault`, `YtPosition` | `MarketThree` | `Orderbook` |
+
+## Quick SDK Examples
+
+### Yield Stripping — strip base assets into PT + YT
+
+```typescript
+const vault = await Vault.load(env, connection, vaultAddress)
+
+const ix = await vault.ixStripFromBase({
+  owner: wallet.publicKey,
+  amountBase: 1_000_000n,
+})
+```
+
+### CLMM — buy PT with base assets
+
+```typescript
+const market = await MarketThree.load(env, connection, marketAddress)
+
+const { ixs, setupIxs } = await market.ixWrapperBuyPt({
+  owner: wallet.publicKey,
+  minPtOut: 950_000_000n,
+  baseIn: 1_000_000_000n,
+})
+```
+
+### Orderbook — post a limit order at a target APY
+
+```typescript
+const orderbook = await Orderbook.load(env, connection, orderbookAddress)
+
+const { ix, setupIxs } = await orderbook.ixWrapperPostOffer({
+  trader: wallet.publicKey,
+  price: 0.12,              // 12% implied APY
+  amount: 1_000_000_000n,
+  offerType: OfferType.BuyYt,
+  offerOption: offerOptions("FillOrKill", [false]),
+  virtualOffer: false,
+  expirySeconds: 86_400 * 7,
+  mintSy: syMintAddress,
+})
+```
+
+## Get Started
+
+<CardGroup cols={3}>
+  <Card title="Yield Stripping Quickstart" icon="rocket" href="/yield-stripping/sdk-quickstart">
+    Strip your first position in minutes.
+  </Card>
+  <Card title="CLMM Quickstart" icon="rocket" href="/clmm/sdk-quickstart">
+    Execute your first swap or LP deposit.
+  </Card>
+  <Card title="Orderbook Quickstart" icon="rocket" href="/orderbook/sdk-quickstart">
+    Post your first limit order.
+  </Card>
+</CardGroup>
+
+<Note>
+Need to combine systems (e.g. strip + sell PT on CLMM for a fixed rate)? See the [Integration Guide](/home/integration-guide).
+</Note>

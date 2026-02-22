@@ -1,0 +1,108 @@
+---
+title: LpFarm
+description: On-chain LpFarm account structure and fields
+---
+
+The LpFarm account manages liquidity mining rewards for a CLMM market. It tracks multiple emission tokens, their distribution rates, expiration timestamps, and the global emission index used to calculate rewards for LP positions.
+
+## LpFarm
+
+```rust
+pub struct LpFarm {
+    /// Last timestamp when the farm was updated
+    pub last_seen_timestamp: u32,
+
+    /// Vector of farm emissions, one per reward token
+    pub farm_emissions: Vec<FarmEmission>,
+}
+```
+
+## FarmEmission
+
+Individual emission token configuration and state.
+
+```rust
+pub struct FarmEmission {
+    /// Mint for the emission token
+    pub mint: Pubkey,
+
+    /// Rate at which the emission token is emitted per second
+    pub token_rate: u64,
+
+    /// Expiration timestamp for this emission
+    pub expiry_timestamp: u32,
+
+    /// Global index for converting LP shares into earned emissions
+    /// This value increases over time as emissions accrue
+    pub index: Number,
+}
+```
+
+## Key Concepts
+
+### Emission Mechanism
+
+The LP farm distributes reward tokens to liquidity providers proportionally to their share of the total liquidity. Each `FarmEmission` represents a separate reward token stream.
+
+The emission mechanism works as follows:
+1. Emissions accrue at `token_rate` tokens per second
+2. The global `index` increases based on emissions and total liquidity
+3. Each LP position tracks its `last_seen_index` for each emission
+4. Rewards owed = (current_index - last_seen_index) × lp_balance
+
+### Token Rate and Duration
+
+The `token_rate` field specifies how many tokens are distributed per second across all LPs. This rate combined with the `expiry_timestamp` determines the total emission budget:
+
+```
+total_emission_budget = token_rate × (expiry_timestamp - start_timestamp)
+```
+
+### Expiration Timestamp
+
+The `expiry_timestamp` marks when this particular emission ends. After this time:
+- The `index` stops increasing for this emission
+- No new rewards accrue, but unclaimed rewards remain claimable
+- The emission slot may be reused for a new reward program
+
+### Global Index
+
+The `index` field is a cumulative measure of emissions per unit of liquidity. It uses the `Number` type (typically Q64.64 or similar fixed-point representation) to maintain precision despite division by large liquidity amounts.
+
+Index updates occur during these operations:
+- LP deposits (add liquidity)
+- LP withdrawals (remove liquidity)
+- Explicit farm update calls
+- Emission claims
+
+### Multiple Emissions
+
+A single farm can run multiple emissions simultaneously via the `farm_emissions` vector. This allows markets to incentivize liquidity with multiple reward tokens (e.g., protocol token + partner token).
+
+Each emission operates independently with its own:
+- Reward token mint
+- Emission rate
+- Expiration timestamp
+- Index tracking
+
+### Farm Lifecycle
+
+1. **Initialization** — Farm is created with initial emission configurations
+2. **Active Emissions** — While `current_timestamp < expiry_timestamp`, emissions accrue at `token_rate`
+3. **Index Updates** — The global `index` is updated whenever LPs interact with the market
+4. **Expiration** — After `expiry_timestamp`, the emission stops accruing but remains claimable
+5. **Renewal** — Expired emissions can be replaced with new emission configurations
+
+### Last Seen Timestamp
+
+The `last_seen_timestamp` tracks when the farm was last updated. This is used to calculate the time delta for index updates:
+
+```
+time_delta = current_timestamp - last_seen_timestamp
+emission_accrued = time_delta × token_rate
+index_increase = emission_accrued / total_liquidity
+```
+
+### Escrow Account Tracking
+
+While not directly stored in the `LpFarm` struct, each emission requires a corresponding escrow token account owned by the market authority. This escrow holds the emission tokens that will be distributed to LPs. The market program enforces that sufficient tokens are escrowed before allowing emission configuration.

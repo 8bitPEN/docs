@@ -1,0 +1,33 @@
+---
+title: Architecture
+description: How Exponent's Solana programs work together
+---
+
+## Programs
+
+Exponent consists of three Solana programs that you interact with through the TypeScript SDK.
+
+| Program | What it does | SDK class |
+|---------|-------------|-----------|
+| **exponent_core** | Yield stripping — strip SY into PT + YT, merge back, manage yield positions | `Vault` |
+| **exponent_clmm** | Concentrated liquidity AMM — buy/sell PT and YT, provide liquidity | `MarketThree` |
+| **exponent_orderbook** | Limit order book — post offers at specific APY levels, market orders | `Orderbook` |
+
+For deployed program addresses, see [Programs](/home/programs).
+
+## How They Fit Together
+
+- **exponent_core** is the foundation — it manages vaults, mints PT and YT, and handles yield positions. The other two programs depend on it.
+- **exponent_clmm** and **exponent_orderbook** are two independent ways to trade PT and YT. They both call into core when a trade requires stripping or merging under the hood.
+- You don't need to interact with these programs directly — the SDK wraps everything into simple method calls on `Vault`, `MarketThree`, and `Orderbook`.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Choosing a Protocol" icon="route" href="/home/choosing-a-protocol">
+    Decide between Yield Stripping, CLMM, and Orderbook
+  </Card>
+  <Card title="Programs" icon="microchip" href="/home/programs">
+    All on-chain program addresses
+  </Card>
+</CardGroup>

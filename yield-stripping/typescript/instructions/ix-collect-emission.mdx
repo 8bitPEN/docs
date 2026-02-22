@@ -1,0 +1,49 @@
+---
+title: Collect Emission
+description: Collect emission rewards from a yield position via the Vault
+---
+
+The `ixCollectEmission` method on the `Vault` class creates a transaction instruction that collects a specific emission reward from a yield position. Emissions are auxiliary reward tokens (e.g., governance tokens) distributed to YT depositors.
+
+## Usage
+
+```typescript
+import { Vault, LOCAL_ENV } from "@exponent-labs/exponent-sdk";
+import { amount } from "@exponent-labs/exponent-core-client";
+import { Connection, PublicKey, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
+
+const connection = new Connection("https://api.mainnet-beta.solana.com");
+const vault = await Vault.load(LOCAL_ENV, connection, vaultAddress);
+
+// Collect all of emission at index 0
+const ix = vault.ixCollectEmission({
+  owner: wallet.publicKey,
+  emissionIndex: 0,
+  amount: amount("All"),
+});
+
+const tx = new Transaction().add(ix);
+const signature = await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+## Required Parameters
+
+| Parameter       | Type        | Description                                           |
+| --------------- | ----------- | ----------------------------------------------------- |
+| `owner`         | `PublicKey`  | The owner's wallet public key                         |
+| `emissionIndex` | `number`     | Index of the emission to collect (0-based)            |
+| `amount`        | `Amount`     | `amount("All")` or `amount("Some", [value])`         |
+
+## Optional Parameters
+
+| Parameter     | Type        | Description                                                 |
+| ------------- | ----------- | ----------------------------------------------------------- |
+| `emissionDst` | `PublicKey`  | Destination emission token account. Defaults to owner's ATA |
+
+## Returns
+
+Returns a `TransactionInstruction` that transfers accrued emission rewards to the owner.
+
+<Tip>
+Use `vault.vaultEmissions` to inspect available emissions and their mints before collecting.
+</Tip>

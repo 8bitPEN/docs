@@ -1,0 +1,49 @@
+---
+title: Wrapper Withdraw Liquidity Classic
+description: Low-level instruction to withdraw liquidity and return PT and base assets separately
+---
+
+# createWrapperWithdrawLiquidityClassicInstruction
+
+Withdraws liquidity from a CLMM market and returns PT tokens and base assets separately. This instruction removes the LP position, returns the PT component directly to the withdrawer, and redeems the SY portion for the underlying base asset. This is useful when the caller wants to retain their PT tokens rather than selling them.
+
+## Usage
+
+```typescript
+import { createWrapperWithdrawLiquidityClassicInstruction } from "@exponent-labs/exponent-clmm-client";
+import { PublicKey, SystemProgram } from "@solana/web3.js";
+
+const ix = createWrapperWithdrawLiquidityClassicInstruction({
+  withdrawer: withdrawerKeypair.publicKey,
+  market: new PublicKey("market..."),
+  ticks: new PublicKey("ticks..."),
+  tokenPtEscrow: new PublicKey("tokenPtEscrow..."),
+  tokenSyEscrow: new PublicKey("tokenSyEscrow..."),
+  tokenSyWithdrawer: new PublicKey("tokenSyWithdrawer..."),
+  tokenPtWithdrawer: new PublicKey("tokenPtWithdrawer..."),
+  tokenProgram: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
+  marketAddressLookupTable: new PublicKey("lookupTable..."),
+  syProgram: new PublicKey("syProgram..."),
+  lpPosition: new PublicKey("lpPosition..."),
+  systemProgram: SystemProgram.programId,
+  eventAuthority: new PublicKey("eventAuthority..."),
+  program: new PublicKey("program..."),
+  amountLp: 1_000_000n,
+  redeemSyAccountsLength: 3,
+});
+```
+
+## Accounts
+
+This instruction uses the [Liquidity Accounts](/clmm/raw-instructions/common-accounts#liquidity-accounts).
+
+## Args
+
+| Name | Type | Description |
+|------|------|-------------|
+| amountLp | `u64` | The amount of LP tokens to withdraw |
+| redeemSyAccountsLength | `u8` | The number of CPI remaining accounts used for SY redemption |
+
+## Returns
+
+`TransactionInstruction` — a Solana transaction instruction ready to be added to a transaction.

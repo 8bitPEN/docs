@@ -1,0 +1,59 @@
+---
+title: Sell YT
+description: Sell YT tokens for base assets in a single transaction
+---
+
+The `ixWrapperSellYt` method on the `MarketThree` class converts YT (Yield Tokens) back into base assets by merging YT with PT to create SY and then redeeming SY for base in a single atomic operation.
+
+## Usage
+
+```typescript
+import { MarketThree, LOCAL_ENV } from "@exponent-labs/exponent-sdk";
+import { Connection, PublicKey, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
+
+const connection = new Connection("https://api.mainnet-beta.solana.com");
+const market = await MarketThree.load(LOCAL_ENV, connection, marketAddress);
+
+const { ixs, setupIxs } = await market.ixWrapperSellYt({
+  owner: wallet.publicKey,
+  amount: 1_000_000_000n,
+  minBaseOut: 900_000_000n,
+});
+
+const tx = new Transaction().add(...setupIxs, ...ixs);
+const signature = await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+<Tip>
+  This is an async method because it needs to construct the SY redemption accounts from the market's flavor configuration.
+</Tip>
+
+## Required Parameters
+
+| Parameter    | Type        | Description                              |
+| ------------ | ----------- | ---------------------------------------- |
+| `owner`      | `PublicKey` | The owner's wallet public key            |
+| `amount`     | `bigint`    | Amount of YT tokens to sell              |
+| `minBaseOut` | `bigint`    | Minimum amount of base asset to receive  |
+
+## Optional Parameters
+
+| Parameter           | Type        | Description                                                    |
+| ------------------- | ----------- | -------------------------------------------------------------- |
+| `tokenBaseTrader`   | `PublicKey` | Destination base token account. Defaults to owner's ATA        |
+| `tokenSyTrader`     | `PublicKey` | Intermediate SY token account. Defaults to owner's ATA         |
+| `tokenYtTrader`     | `PublicKey` | Source YT token account. Defaults to owner's ATA               |
+| `tokenPtTrader`     | `PublicKey` | Intermediate PT token account. Defaults to owner's ATA         |
+
+## Returns
+
+Returns a `Promise<PreparedInstruction>` with the following structure:
+
+```typescript
+{
+  ixs: TransactionInstruction[],      // Main instructions to execute
+  setupIxs: TransactionInstruction[]  // Setup instructions for creating ATAs
+}
+```
+
+The `setupIxs` array contains instructions to create the necessary associated token accounts (ATAs) for SY, PT, YT, and base tokens. The `ixs` array contains the sell YT instruction followed by the flavor pre-instructions.

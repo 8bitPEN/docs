@@ -1,0 +1,33 @@
+---
+title: Overview
+description: A high-level technical introduction to the Exponent CLMM
+---
+
+The Exponent CLMM (Concentrated Liquidity Market Maker) is an on-chain AMM for trading [PT (Principal Tokens)](/home/learn/principal-token) and [SY (Standardized Yield Tokens)](/home/learn/standardized-yield) with concentrated liquidity on Solana. Liquidity providers allocate capital within custom APY ranges, enabling deeper markets and improved capital efficiency for yield trading.
+
+## PT Pricing
+
+PT tokens trade at a discount determined by the [implied APY pricing formula](/home/learn/pricing-and-math). As maturity approaches, the PT price converges to 1 — meaning PT becomes redeemable at par.
+
+## Tick System
+
+The CLMM uses ticks keyed by **APY in basis points** rather than price levels. See [Core Concepts](/clmm/concepts#apy-based-tick-system) for details on the tick formula and structure.
+
+## Dynamic Fee Rate
+
+The CLMM uses a [time-weighted fee decay model](/home/learn/pricing-and-math#fee-decay-model) where fees decrease as maturity approaches. The protocol takes a cut of swap fees defined by `treasury_fee_bps` (in basis points).
+
+## SDK Class
+
+The CLMM SDK exposes a single main class:
+
+- **`MarketThree`** — Loads market state and provides all trading, liquidity, and read operations. Includes wrapper methods for buying/selling PT and YT, providing and withdrawing liquidity, and querying positions and fees.
+
+## Getting Started
+
+<CardGroup cols={2}>
+  <Card title="SDK Quickstart" href="/clmm/sdk-quickstart" />
+  <Card title="Core Concepts" href="/clmm/concepts" />
+  <Card title="Instructions" href="/clmm/typescript/instructions/overview" />
+  <Card title="Read Functions" href="/clmm/typescript/read-functions/overview" />
+</CardGroup>

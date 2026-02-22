@@ -1,0 +1,63 @@
+---
+title: Wrapper Provide Liquidity
+description: Low-level instruction to provide liquidity from base assets
+---
+
+# createWrapperProvideLiquidityInstruction
+
+Provides liquidity to a CLMM market starting from base assets in a single atomic operation. This instruction mints SY from the base asset, strips the SY into PT and YT via the Exponent core program, deposits the PT as liquidity into the specified tick range, and returns the YT tokens to the depositor.
+
+## Usage
+
+```typescript
+import { createWrapperProvideLiquidityInstruction } from "@exponent-labs/exponent-clmm-client";
+import { PublicKey, SystemProgram } from "@solana/web3.js";
+
+const ix = createWrapperProvideLiquidityInstruction({
+  depositor: depositorKeypair.publicKey,
+  market: new PublicKey("market..."),
+  ticks: new PublicKey("ticks..."),
+  tokenPtEscrow: new PublicKey("tokenPtEscrow..."),
+  tokenYtEscrow: new PublicKey("tokenYtEscrow..."),
+  tokenSyEscrow: new PublicKey("tokenSyEscrow..."),
+  tokenSyDepositor: new PublicKey("tokenSyDepositor..."),
+  tokenYtDepositor: new PublicKey("tokenYtDepositor..."),
+  tokenPtDepositor: new PublicKey("tokenPtDepositor..."),
+  mintYt: new PublicKey("mintYt..."),
+  mintPt: new PublicKey("mintPt..."),
+  tokenProgram: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
+  marketAddressLookupTable: new PublicKey("lookupTable..."),
+  syProgram: new PublicKey("syProgram..."),
+  exponentCoreProgram: new PublicKey("exponentCoreProgram..."),
+  lpPosition: new PublicKey("lpPosition..."),
+  systemProgram: SystemProgram.programId,
+  rent: new PublicKey("SysvarRent111111111111111111111111111111111"),
+  eventAuthority: new PublicKey("eventAuthority..."),
+  program: new PublicKey("program..."),
+  lowerTick: 0,
+  upperTick: 100,
+  amountBase: 1_000_000n,
+  minLpOut: 900_000n,
+  mintSyRemAccountsUntil: 3,
+  depositYtAccountsUntil: 5,
+});
+```
+
+## Accounts
+
+This instruction uses the [Liquidity Accounts](/clmm/raw-instructions/common-accounts#liquidity-accounts).
+
+## Args
+
+| Name | Type | Description |
+|------|------|-------------|
+| lowerTick | `u32` | The lower tick boundary key for the liquidity position |
+| upperTick | `u32` | The upper tick boundary key for the liquidity position |
+| amountBase | `u64` | The amount of base asset to provide |
+| minLpOut | `u64` | The minimum amount of LP tokens to receive |
+| mintSyRemAccountsUntil | `u8` | The number of CPI remaining accounts used for SY minting |
+| depositYtAccountsUntil | `u8` | The number of CPI remaining accounts used for YT deposit |
+
+## Returns
+
+`TransactionInstruction` — a Solana transaction instruction ready to be added to a transaction.

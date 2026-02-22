@@ -1,0 +1,52 @@
+---
+title: Add Liquidity
+description: Low-level instruction to add liquidity to an existing LP position
+---
+
+# createAddLiquidityInstruction
+
+Builds a raw instruction to add liquidity to an existing LP position within its current tick range. This increases the position's liquidity by depositing additional PT and SY tokens into the pool at the position's previously defined tick boundaries.
+
+## Usage
+
+```typescript
+import { createAddLiquidityInstruction } from "@exponent-labs/exponent-clmm-client";
+import { PublicKey, SystemProgram } from "@solana/web3.js";
+
+const ix = createAddLiquidityInstruction({
+  owner: ownerKeypair.publicKey,
+  market: marketAddress,
+  ticks: ticksAccount,
+  lpPosition: lpPositionAccount,
+  tokenPtSrc: ownerPtTokenAccount,
+  tokenSySrc: ownerSyTokenAccount,
+  tokenPtEscrow: marketPtEscrow,
+  tokenSyEscrow: marketSyEscrow,
+  addressLookupTable: lookupTableAddress,
+  tokenProgram: tokenProgramId,
+  syProgram: syProgramId,
+  systemProgram: SystemProgram.programId,
+  rent: rentSysvar,
+  eventAuthority: eventAuthorityPda,
+  program: clmmProgramId,
+  maxSyInToAdd: 1_000_000_000n,
+  maxPtInToAdd: 500_000_000n,
+});
+```
+
+## Accounts
+
+This instruction uses the [Liquidity Accounts](/clmm/raw-instructions/common-accounts#liquidity-accounts).
+
+## Args
+
+| Name | Type | Description |
+|------|------|-------------|
+| `maxSyInToAdd` | `u64` | Maximum amount of SY tokens to add |
+| `maxPtInToAdd` | `u64` | Maximum amount of PT tokens to add |
+| `lowerTickKeyOptional` | `u32` (optional) | Lower tick key override |
+| `upperTickKeyOptional` | `u32` (optional) | Upper tick key override |
+
+## Returns
+
+`TransactionInstruction` — a Solana transaction instruction ready to be added to a transaction.

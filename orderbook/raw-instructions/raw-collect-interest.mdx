@@ -1,0 +1,73 @@
+---
+title: Collect Interest
+description: Low-level instruction to collect accrued SY interest from the orderbook
+---
+
+# createCollectInterestInstruction
+
+Builds a raw instruction to collect accrued SY interest earned by a trader's positions held in the orderbook.
+
+## Usage
+
+```typescript
+import { createCollectInterestInstruction, amount } from "@exponent-labs/exponent-orderbook-client";
+import { PublicKey } from "@solana/web3.js";
+
+const ix = createCollectInterestInstruction(
+  {
+    trader: wallet.publicKey,
+    orderbook: orderbookAddress,
+    vault: vaultAddress,
+    tokenEscrowSy: orderbookSyEscrow,
+    tokenSyTrader: userSyTokenAccount,
+    systemProgram: SYSTEM_PROGRAM_ID,
+    tokenProgram: TOKEN_2022_PROGRAM_ID,
+    syProgram: syProgramId,
+    exponentCore: EXPONENT_CORE_PROGRAM_ID,
+    addressLookupTable: vaultLookupTable,
+    cpiAccountOrderbook: cpiAccountsOrderbook,
+    eventAuthority: eventAuthorityPda,
+    program: EXPONENT_ORDERBOOK_PROGRAM_ID,
+  },
+  {
+    syAmountOptional: amount("All"),
+  }
+);
+```
+
+## Accounts
+
+| Name | Type | Signer | Writable | Description |
+|------|------|--------|----------|-------------|
+| `trader` | `PublicKey` | Yes | No | The user collecting interest |
+| `orderbook` | `PublicKey` | No | Yes | Orderbook account |
+| `vault` | `PublicKey` | No | No | Vault account |
+| `tokenEscrowSy` | `PublicKey` | No | Yes | Orderbook SY escrow account |
+| `tokenSyTrader` | `PublicKey` | No | Yes | Trader SY token account |
+| `systemProgram` | `PublicKey` | No | No | System program |
+| `tokenProgram` | `PublicKey` | No | No | SPL Token 2022 program |
+| `syProgram` | `PublicKey` | No | No | SY program |
+| `exponentCore` | `PublicKey` | No | No | Exponent Core program |
+| `addressLookupTable` | `PublicKey` | No | No | Vault address lookup table |
+| `cpiAccountOrderbook` | `PublicKey` | No | No | CPI accounts orderbook |
+| `eventAuthority` | `PublicKey` | No | No | Event authority PDA |
+| `program` | `PublicKey` | No | No | Exponent Orderbook program |
+
+## Args
+
+| Name | Type | Description |
+|------|------|-------------|
+| `syAmountOptional` | `Amount` | Amount to collect: `amount("All")` or `amount("Some", [value])` |
+
+### Amount Helper
+
+```typescript
+import { amount } from "@exponent-labs/exponent-orderbook-client";
+
+amount("All")                // collect everything available
+amount("Some", [500_000n])   // collect a specific amount
+```
+
+## Returns
+
+`TransactionInstruction` — a Solana transaction instruction ready to be added to a transaction.

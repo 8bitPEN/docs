@@ -1,0 +1,86 @@
+---
+title: Wrapper Market Offer
+description: Low-level instruction to execute a market order with automatic SY minting/redemption
+---
+
+# createWrapperMarketOfferInstruction
+
+Builds a raw instruction that executes a market order against existing offers with automatic SY minting/redemption and YT deposit/withdrawal. This combines the SY operations and market order execution atomically.
+
+## Usage
+
+```typescript
+import { createWrapperMarketOfferInstruction } from "@exponent-labs/exponent-orderbook-client";
+import { PublicKey, SystemProgram } from "@solana/web3.js";
+
+const ix = createWrapperMarketOfferInstruction(
+  {
+    trader: wallet.publicKey,
+    orderbook: orderbookAddress,
+    vault: vaultAddress,
+    cpiAccountOrderbook: cpiAccountsOrderbook,
+    yieldPosition: yieldPositionPda,
+    tokenEscrowYt: orderbookEscrowYt,
+    tokenEscrowSy: orderbookEscrowSy,
+    tokenEscrowPt: orderbookEscrowPt,
+    tokenSyTrader: userSyTokenAccount,
+    tokenYtTrader: userYtTokenAccount,
+    tokenPtTrader: userPtTokenAccount,
+    systemProgram: SystemProgram.programId,
+    syProgram: syProgramId,
+    tokenProgram: TOKEN_PROGRAM_ID,
+    exponentCore: EXPONENT_CORE_PROGRAM_ID,
+    addressLookupTable: vaultLookupTable,
+    eventAuthority: eventAuthorityPda,
+    program: EXPONENT_ORDERBOOK_PROGRAM_ID,
+  },
+  {
+    maxPriceApy: 8.0,
+    amountBase: BigInt(500_000),
+    minAmountOut: BigInt(490_000),
+    offerType: { buyYt: {} },
+    virtualOffer: false,
+    mintSyOrWithdrawYtAccountsUntil: 0,
+    redeemSyOrDepositYtAccountsUntil: 0,
+  }
+);
+```
+
+## Accounts
+
+| Name | Type | Signer | Writable | Description |
+|------|------|--------|----------|-------------|
+| `trader` | `PublicKey` | Yes | No | The trader executing the market order |
+| `orderbook` | `PublicKey` | No | Yes | Orderbook account |
+| `vault` | `PublicKey` | No | Yes | Vault account |
+| `cpiAccountOrderbook` | `PublicKey` | No | No | CPI accounts orderbook |
+| `yieldPosition` | `PublicKey` | No | Yes | User's yield position PDA |
+| `tokenEscrowYt` | `PublicKey` | No | Yes | Orderbook YT escrow account |
+| `tokenEscrowSy` | `PublicKey` | No | Yes | Orderbook SY escrow account |
+| `tokenEscrowPt` | `PublicKey` | No | Yes | Orderbook PT escrow account |
+| `tokenSyTrader` | `PublicKey` | No | Yes | Trader's SY token account |
+| `tokenYtTrader` | `PublicKey` | No | Yes | Trader's YT token account |
+| `tokenPtTrader` | `PublicKey` | No | Yes | Trader's PT token account |
+| `systemProgram` | `PublicKey` | No | No | System program |
+| `syProgram` | `PublicKey` | No | No | SY program |
+| `tokenProgram` | `PublicKey` | No | No | SPL Token program |
+| `exponentCore` | `PublicKey` | No | No | Exponent Core program |
+| `addressLookupTable` | `PublicKey` | No | No | Vault address lookup table |
+| `eventAuthority` | `PublicKey` | No | No | Event authority PDA |
+| `program` | `PublicKey` | No | No | Exponent Orderbook program |
+
+## Args
+
+| Name | Type | Description |
+|------|------|-------------|
+| `maxPriceApy` | `number` | Maximum acceptable price as implied APY (f64) |
+| `amountBase` | `bigint` | Amount of base asset to use (in base units) |
+| `minAmountOut` | `bigint` | Minimum amount of output tokens to receive |
+| `offerType` | `OfferType` | Type of offer (SellYt or BuyYt) |
+| `virtualOffer` | `boolean` | Whether this is a virtual offer |
+| `mintSyOrWithdrawYtAccountsUntil` | `number` | Index into remaining accounts for SY minting or YT withdrawal CPI accounts |
+| `redeemSyOrDepositYtAccountsUntil` | `number` | Index into remaining accounts for SY redemption or YT deposit CPI accounts |
+
+## Returns
+
+`TransactionInstruction` — a Solana transaction instruction ready to be added to a transaction.

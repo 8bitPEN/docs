@@ -1,0 +1,47 @@
+---
+title: Merge (to SY)
+description: Merge PT and YT back into SY tokens
+---
+
+The `ixMerge` method on the `Vault` class creates a transaction instruction that merges PT and YT back into SY tokens.
+
+<Note>
+This method returns SY tokens. If you want to receive the base asset directly (e.g., USDC), use [`ixMergeToBase`](/yield-stripping/typescript/instructions/ix-merge-to-base) instead.
+</Note>
+
+## Usage
+
+```typescript
+import { Vault, LOCAL_ENV } from "@exponent-labs/exponent-sdk";
+import { Connection, PublicKey, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
+
+const connection = new Connection("https://api.mainnet-beta.solana.com");
+const vault = await Vault.load(LOCAL_ENV, connection, vaultAddress);
+
+const ix = vault.ixMerge({
+  pyIn: 1_000_000n,
+  depositor: wallet.publicKey,
+});
+
+const tx = new Transaction().add(ix);
+const signature = await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+## Required Parameters
+
+| Parameter   | Type        | Description                          |
+| ----------- | ----------- | ------------------------------------ |
+| `pyIn`      | `bigint`    | Amount of PT and YT to merge        |
+| `depositor` | `PublicKey`  | The depositor's wallet public key    |
+
+## Optional Parameters
+
+| Parameter | Type        | Description                                                |
+| --------- | ----------- | ---------------------------------------------------------- |
+| `ptSrc`   | `PublicKey`  | Source PT token account. Defaults to depositor's ATA       |
+| `ytSrc`   | `PublicKey`  | Source YT token account. Defaults to depositor's ATA       |
+| `syDst`   | `PublicKey`  | Destination SY token account. Defaults to depositor's ATA  |
+
+## Returns
+
+Returns a `TransactionInstruction` that merges equal amounts of PT and YT back into SY.

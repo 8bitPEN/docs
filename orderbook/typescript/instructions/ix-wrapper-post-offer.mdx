@@ -1,0 +1,69 @@
+---
+title: Post Order
+description: Post a limit order to the orderbook
+---
+
+The `ixWrapperPostOffer` instruction posts a limit order to the Exponent orderbook.
+
+## Usage
+
+```typescript
+import { BN } from "@coral-xyz/anchor";
+import { PublicKey, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
+import * as exponentOrderbook from "@exponent-labs/exponent-orderbook-client";
+
+const { ix, setupIxs } = await orderbook.ixWrapperPostOffer({
+  trader: wallet.publicKey,
+  price: 4.5,
+  amount: new BN(1_000_000_000),
+  offerType: exponentOrderbook.OfferType.SellYt,
+  offerOption: exponentOrderbook.offerOptions("FillOrKill", [false]),
+  virtualOffer: false,
+  expirySeconds: 3600,
+  mintSy: syMintAddress,
+});
+
+// Build and send the transaction
+const tx = new Transaction().add(...setupIxs, ix);
+const signature = await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+## Required Parameters
+
+| Parameter | Type | Description |
+| --------- | ---- | ----------- |
+| `trader` | `PublicKey` | The trader's wallet public key |
+| `price` | `number` | The limit price for the offer in APY terms |
+| `amount` | `BN` | The amount to offer in lamports |
+| `offerType` | `OfferType` | The type of offer (`OfferType.BuyYt` / `OfferType.SellYt`) |
+| `offerOption` | `OfferOptions` | Offer execution option via `offerOptions("FillOrKill", [boolean])` |
+| `virtualOffer` | `boolean` | Whether this is a virtual offer |
+| `expirySeconds` | `number` | Time until the offer expires (in seconds) |
+| `mintSy` | `PublicKey` | The SY token mint address |
+
+## Optional Parameters
+
+| Parameter | Type | Description |
+| --------- | ---- | ----------- |
+| `ptSrc` | `PublicKey` | PT token source account |
+| `ytSrc` | `PublicKey` | YT token source account |
+| `sySrc` | `PublicKey` | SY token source account |
+| `tokenBaseTrader` | `PublicKey` | Base token account for the trader |
+
+## Returns
+
+Returns an object with:
+
+- `ix` — The `TransactionInstruction` that posts the limit order
+- `setupIxs` — An array of setup instructions to run before `ix`:
+  - `setupIxs[0]` — Creates the PT associated token account (if needed)
+  - `setupIxs[1]` — Creates the YT associated token account (if needed)
+  - `setupIxs[2]` — Creates the SY associated token account (if needed)
+
+<Tip>
+Use `offerOptions("FillOrKill", [true])` to require the order to be filled completely or not at all. Pass `false` to allow partial fills.
+</Tip>
+
+<Note>
+Offer expiry is capped at vault maturity — if `expirySeconds` exceeds the time remaining until maturity, the offer expires at maturity instead. After maturity, new offers are rejected.
+</Note>

@@ -1,0 +1,53 @@
+---
+title: Wrapper Sell PT
+description: Low-level instruction to sell PT for base assets in a single atomic operation
+---
+
+# createSellPtInstruction
+
+Sells PT tokens for base assets in a single atomic operation. This is an alias for the sellPt instruction which handles the SY-to-base redemption internally via CPI remaining accounts. The caller supplies PT tokens and receives base tokens directly, without needing to manually redeem SY.
+
+## Usage
+
+```typescript
+import { createSellPtInstruction } from "@exponent-labs/exponent-clmm-client";
+import { PublicKey } from "@solana/web3.js";
+
+const ix = createSellPtInstruction({
+  seller: sellerKeypair.publicKey,
+  market: new PublicKey("market..."),
+  tokenSyTrader: new PublicKey("tokenSyTrader..."),
+  tokenPtTrader: new PublicKey("tokenPtTrader..."),
+  tokenSyEscrow: new PublicKey("tokenSyEscrow..."),
+  tokenPtEscrow: new PublicKey("tokenPtEscrow..."),
+  addressLookupTable: new PublicKey("lookupTable..."),
+  tokenProgram: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
+  syProgram: new PublicKey("syProgram..."),
+  tokenFeeTreasurySy: new PublicKey("tokenFeeTreasurySy..."),
+  tokenFeeTreasuryPt: new PublicKey("tokenFeeTreasuryPt..."),
+  ticks: new PublicKey("ticks..."),
+  eventAuthority: new PublicKey("eventAuthority..."),
+  program: new PublicKey("program..."),
+  amountPt: 1_000_000n,
+  minBaseAmount: 950_000n,
+  priceSpotLimit: 1.05,
+  redeemSyRemAccountsUntil: 3,
+});
+```
+
+## Accounts
+
+This instruction uses the [PT Swap Accounts](/clmm/raw-instructions/common-accounts#pt-swap-accounts).
+
+## Args
+
+| Name | Type | Description |
+|------|------|-------------|
+| amountPt | `u64` | The amount of PT tokens to sell |
+| minBaseAmount | `u64` | The minimum amount of base asset to receive |
+| priceSpotLimit | `f64` (optional) | The price limit for the trade |
+| redeemSyRemAccountsUntil | `u8` | The number of CPI remaining accounts used for SY redemption |
+
+## Returns
+
+`TransactionInstruction` — a Solana transaction instruction ready to be added to a transaction.

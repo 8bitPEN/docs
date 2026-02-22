@@ -1,0 +1,228 @@
+---
+title: SDK Quickstart
+description: Get started with the Exponent Orderbook SDK
+---
+
+Set up the Exponent Orderbook SDK and walk through the complete trading lifecycle — from loading an orderbook and getting quotes, to posting orders, managing positions, and withdrawing funds.
+
+## Installation
+
+<CodeGroup>
+```bash yarn
+yarn add @exponent-labs/exponent-sdk
+```
+```bash npm
+npm install @exponent-labs/exponent-sdk
+```
+```bash pnpm
+pnpm add @exponent-labs/exponent-sdk
+```
+</CodeGroup>
+
+## Setup
+
+```typescript
+import { Orderbook, LOCAL_ENV } from "@exponent-labs/exponent-sdk";
+import {
+  Connection,
+  PublicKey,
+  Transaction,
+  sendAndConfirmTransaction,
+  Keypair,
+} from "@solana/web3.js";
+import { BN } from "@coral-xyz/anchor";
+
+const connection = new Connection("https://api.mainnet-beta.solana.com");
+const wallet = Keypair.fromSecretKey(/* your keypair */);
+const orderbookAddress = new PublicKey("...");
+const syMintAddress = new PublicKey("...");
+
+const orderbook = await Orderbook.load(LOCAL_ENV, connection, orderbookAddress);
+```
+
+## 1. Get a Quote
+
+Use `getQuote` to simulate a trade and check the expected output before sending a transaction.
+
+```typescript
+import { QuoteDirection } from "@exponent-labs/exponent-sdk";
+
+const clock = await connection.getClock();
+const unixNow = Number(clock.unixTimestamp);
+
+const quote = orderbook.getQuote({
+  inAmount: 1_000_000_000,
+  direction: QuoteDirection.SY_TO_YT,
+  unixNow,
+  syExchangeRate: 1.000009210084,
+});
+
+console.log("Expected output:", quote.outAmount);
+console.log("Maker fees:", quote.makerFees);
+console.log("Taker fees:", quote.takerFees);
+```
+
+<Tip>
+Always use `connection.getClock()` for the `unixNow` parameter — `Date.now()` may drift from the on-chain clock and produce inaccurate quotes.
+</Tip>
+
+## 2. Post a Limit Order
+
+Use `ixWrapperPostOffer` to place a limit order on the orderbook. The wrapper handles token account creation automatically.
+
+```typescript
+import * as exponentOrderbook from "@exponent-labs/exponent-orderbook-client";
+
+const { ix, setupIxs } = await orderbook.ixWrapperPostOffer({
+  trader: wallet.publicKey,
+  price: 5.0,
+  amount: new BN(1_000_000_000),
+  offerType: exponentOrderbook.OfferType.SellYt,
+  offerOption: exponentOrderbook.offerOptions("FillOrKill", [false]),
+  virtualOffer: false,
+  expirySeconds: 3600,
+  mintSy: syMintAddress,
+});
+
+const tx = new Transaction().add(...setupIxs, ix);
+await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+<Note>
+The `setupIxs` array creates PT, YT, and SY token accounts if they don't exist. Always include them before `ix` in your transaction.
+</Note>
+
+## 3. Execute a Market Order
+
+Use `ixWrapperMarketOffer` to fill against existing orders immediately.
+
+```typescript
+import * as exponentOrderbook from "@exponent-labs/exponent-orderbook-client";
+
+const { ix, setupIxs } = await orderbook.ixWrapperMarketOffer({
+  trader: wallet.publicKey,
+  maxPriceApy: 5.5,
+  amount: new BN(1_000_000_000),
+  offerType: exponentOrderbook.OfferType.BuyYt,
+  minAmountOut: new BN(990_000_000),
+  virtualOffer: false,
+  mintSy: syMintAddress,
+});
+
+const tx = new Transaction().add(...setupIxs, ix);
+await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+<Tip>
+Set `minAmountOut` for slippage protection. The transaction reverts if the output falls below this threshold.
+</Tip>
+
+## 4. Check Open Orders
+
+Query your active orders to see what's currently on the book.
+
+```typescript
+const openOrders = orderbook.getUserOpenOrders(wallet.publicKey);
+
+for (const order of openOrders) {
+  console.log("Index:", order.offerIndex);
+  console.log("Type:", order.type);
+  console.log("Price APY:", order.priceApy);
+  console.log("Amount:", order.amount);
+}
+```
+
+## 5. Remove an Order
+
+Cancel an open order using its `offerIdx` from `getUserOpenOrders`.
+
+```typescript
+const ix = await orderbook.ixWrapperRemoveOffer({
+  trader: wallet.publicKey,
+  offerIdx: openOrders[0].offerIndex,
+  mintSy: syMintAddress,
+});
+
+const tx = new Transaction().add(ix);
+await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+<Note>
+Use `getUserOpenOrders` to find the `offerIdx` of the order you want to remove. Removing an order returns PT/YT back to your escrow balance.
+</Note>
+
+## 6. Collect Interest
+
+Collect yield that has accrued on YT held in your open or filled orders.
+
+```typescript
+const ix = await orderbook.ixWrapperCollectInterest({
+  trader: wallet.publicKey,
+  mintSy: syMintAddress,
+});
+
+const tx = new Transaction().add(ix);
+await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+<Tip>
+Interest accrues on YT held in open sell orders and from filled buy orders. You can collect it at any time without affecting your active orders.
+</Tip>
+
+## 7. Withdraw Funds
+
+Withdraw PT, YT, and SY from your orderbook escrow back to your wallet.
+
+```typescript
+import { amount } from "@exponent-labs/exponent-orderbook-client";
+
+const ix = await orderbook.ixWrapperWithdrawFunds({
+  trader: wallet.publicKey,
+  mintSy: syMintAddress,
+  ptAmount: amount("All"),
+  ytAmount: amount("All"),
+  syAmount: amount("All"),
+});
+
+const tx = new Transaction().add(ix);
+await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+<Note>
+Use `amount("All")` to withdraw all available funds, or `amount("Some", [500_000_000n])` for a specific amount. The `amount` helper is imported from `@exponent-labs/exponent-orderbook-client`.
+</Note>
+
+## Reading State
+
+Query orderbook and user state without sending transactions:
+
+```typescript
+// Check your escrow balances
+const balances = orderbook.getUserBalances(wallet.publicKey);
+console.log("PT:", balances.pt);
+console.log("YT:", balances.yt);
+console.log("SY:", balances.sy);
+console.log("Staked YT:", balances.stakedYt);
+console.log("Staged interest:", balances.staged);
+
+// Get a quote for a potential trade
+const clock = await connection.getClock();
+const quote = orderbook.getQuote({
+  inAmount: 1_000_000_000,
+  direction: QuoteDirection.SY_TO_YT,
+  unixNow: Number(clock.unixTimestamp),
+  syExchangeRate: 1.0001,
+});
+
+// View open orders
+const orders = orderbook.getUserOpenOrders(wallet.publicKey);
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Core Concepts" href="/orderbook/concepts" />
+  <Card title="Virtual Offers" href="/orderbook/virtual-offers" />
+  <Card title="TypeScript Instructions" href="/orderbook/typescript/instructions/overview" />
+  <Card title="Read Functions" href="/orderbook/typescript/read-functions/overview" />
+</CardGroup>

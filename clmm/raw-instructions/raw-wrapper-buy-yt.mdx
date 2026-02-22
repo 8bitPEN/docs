@@ -1,0 +1,57 @@
+---
+title: Wrapper Buy YT
+description: Low-level instruction to buy YT tokens from base assets in a single atomic operation
+---
+
+# createWrapperBuyYtInstruction
+
+Builds a raw instruction to buy YT tokens from base assets in a single atomic operation. This instruction handles SY minting from the base asset, stripping SY into PT and YT, and selling excess PT back to the pool -- all within a single transaction instruction. This is the most convenient way to acquire YT from a base asset.
+
+## Usage
+
+```typescript
+import { createWrapperBuyYtInstruction } from "@exponent-labs/exponent-clmm-client";
+import { PublicKey, SystemProgram } from "@solana/web3.js";
+
+const ix = createWrapperBuyYtInstruction({
+  buyer: buyerKeypair.publicKey,
+  market: marketAddress,
+  tokenSyTrader: buyerSyTokenAccount,
+  tokenYtTrader: buyerYtTokenAccount,
+  tokenPtTrader: buyerPtTokenAccount,
+  tokenSyEscrow: marketSyEscrow,
+  tokenPtEscrow: marketPtEscrow,
+  tokenYtEscrow: marketYtEscrow,
+  marketAddressLookupTable: lookupTableAddress,
+  tokenProgram: tokenProgramId,
+  syProgram: syProgramId,
+  systemProgram: SystemProgram.programId,
+  tokenFeeTreasurySy: feeTreasurySyAccount,
+  tokenFeeTreasuryPt: feeTreasuryPtAccount,
+  ticks: ticksAccount,
+  exponentCoreProgram: exponentCoreProgramId,
+  eventAuthority: eventAuthorityPda,
+  program: clmmProgramId,
+  ytOut: 1_000_000_000n,
+  maxBaseAmount: 1_100_000_000n,
+  mintSyAccountsLength: 5,
+  depositYtAccountsUntil: 3,
+});
+```
+
+## Accounts
+
+This instruction uses the [YT Swap Accounts](/clmm/raw-instructions/common-accounts#yt-swap-accounts).
+
+## Args
+
+| Name | Type | Description |
+|------|------|-------------|
+| `ytOut` | `u64` | Amount of YT tokens to receive |
+| `maxBaseAmount` | `u64` | Maximum amount of base asset to spend |
+| `mintSyAccountsLength` | `u8` | Number of CPI accounts used for SY minting |
+| `depositYtAccountsUntil` | `u8` | Number of CPI accounts used for YT deposit |
+
+## Returns
+
+`TransactionInstruction` — a Solana transaction instruction ready to be added to a transaction.

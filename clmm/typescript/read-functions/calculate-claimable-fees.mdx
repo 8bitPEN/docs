@@ -1,0 +1,74 @@
+---
+title: Calculate Claimable Fees
+description: Calculate claimable fees for a liquidity position based on fee growth
+---
+
+The `MarketThree.calculateClaimableFees()` static method calculates the claimable fees for a liquidity position based on fee growth indices and position parameters.
+
+## Usage
+
+```typescript
+import { MarketThree } from "@exponent-labs/exponent-sdk";
+
+// Calculate claimable fees for a position
+const feeData = MarketThree.calculateClaimableFees({
+  lpBalance: position.lpBalance,
+  feeInsideLastSy: position.feeGrowthInsideLastSy,
+  feeInsideLastPt: position.feeGrowthInsideLastPt,
+  currentInsideSy: currentFeeGrowthSy,
+  currentInsidePt: currentFeeGrowthPt,
+  tokensOwedSy: position.tokensOwedSy,
+  tokensOwedPt: position.tokensOwedPt,
+});
+
+console.log("Claimable SY fees:", feeData.claimableSy);
+console.log("Claimable PT fees:", feeData.claimablePt);
+console.log("Total SY fees:", feeData.totalSy);
+console.log("Total PT fees:", feeData.totalPt);
+```
+
+## Parameters
+
+| Parameter          | Type     | Required | Description                                                 |
+| ------------------ | -------- | -------- | ----------------------------------------------------------- |
+| `lpBalance`        | `bigint` | Yes      | The liquidity balance of the position                       |
+| `feeInsideLastSy`  | `bigint` | Yes      | Last recorded SY fee growth inside the position range       |
+| `feeInsideLastPt`  | `bigint` | Yes      | Last recorded PT fee growth inside the position range       |
+| `currentInsideSy`  | `bigint` | Yes      | Current SY fee growth inside the position range             |
+| `currentInsidePt`  | `bigint` | Yes      | Current PT fee growth inside the position range             |
+| `tokensOwedSy`     | `bigint` | Yes      | Previously owed SY fees not yet claimed                     |
+| `tokensOwedPt`     | `bigint` | Yes      | Previously owed PT fees not yet claimed                     |
+
+## Returns
+
+Returns an object with:
+
+```typescript
+{
+  claimableSy: bigint;
+  claimablePt: bigint;
+  tokensOwedSy: bigint;
+  tokensOwedPt: bigint;
+  totalSy: bigint;
+  totalPt: bigint;
+}
+```
+
+| Property        | Type     | Description                                                  |
+| --------------- | -------- | ------------------------------------------------------------ |
+| `claimableSy`   | `bigint` | Newly accrued SY fees that can be claimed                    |
+| `claimablePt`   | `bigint` | Newly accrued PT fees that can be claimed                    |
+| `tokensOwedSy`  | `bigint` | Updated total SY fees owed (includes previously owed)        |
+| `tokensOwedPt`  | `bigint` | Updated total PT fees owed (includes previously owed)        |
+| `totalSy`       | `bigint` | Total SY fees (claimable + previously owed)                  |
+| `totalPt`       | `bigint` | Total PT fees (claimable + previously owed)                  |
+
+## Calculation Details
+
+The method uses Q64.64 fixed-point math to calculate fees:
+
+```
+fees = floor((lpBalance * feeGrowthDelta) >> 64)
+```
+
+Where `feeGrowthDelta` is the difference between current and last recorded fee growth inside the position range.

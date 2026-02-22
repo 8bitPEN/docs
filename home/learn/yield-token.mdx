@@ -1,0 +1,46 @@
+---
+title: "YT: Yield Token"
+description: "How Yield Tokens give you leveraged exposure to variable yield"
+---
+
+## What Is YT?
+
+YT (Yield Token) is the variable-yield side of a stripped position. When [SY](/home/learn/standardized-yield) is [stripped](/home/learn/token-lifecycle), it splits into [PT](/home/learn/principal-token) (capturing the principal) and YT (capturing all yield until [maturity](/home/learn/maturity)).
+
+Because YT only represents the yield component, it costs a fraction of the full asset — but earns the same yield. This makes YT a leveraged bet on the underlying rate: if yield is higher than the market expects, YT holders profit disproportionately. If yield disappoints, losses are amplified too.
+
+## Key Properties
+
+- **Leveraged yield exposure** — amplified returns compared to holding SY directly
+- **Value decreases over time** — less time remaining means less yield left to capture
+- **Yield accrues in real time** — claimable as the [exchange rate](/home/learn/standardized-yield#the-exchange-rate) grows, not only at maturity
+- **Expires worthless** — after final yield collection at maturity, YT has no residual value
+
+## How the Leverage Works
+
+Suppose PT trades at 0.95. That means YT costs just 0.05 per unit — giving you 20x leverage on yield. Here's what that looks like in practice:
+
+| If underlying earns | Holding 1,000 SY | Holding YT (cost: 50 SY) |
+|---------------------|:-----------------:|:------------------------:|
+| 5% over 90 days | 50 SY profit | ~47.6 SY profit (95% return) |
+| 2% over 90 days | 20 SY profit | ~19 SY profit (38% return) |
+| 0% | 0 | 0 — lost 50 SY cost |
+
+YT also exhibits time decay: as maturity approaches, less time remains to earn yield, so YT price falls — even if the underlying rate hasn't changed. This is the cost of leveraged exposure.
+
+For the exact pricing formulas (YT pricing, yield accrual, leverage multiplier, time decay), see [Pricing & Math](/home/learn/pricing-and-math).
+
+<Warning>
+YT does not earn yield sitting in your wallet. You must deposit it into a `YieldTokenPosition` so the protocol can track accrual. See the [SDK Quickstart](/yield-stripping/sdk-quickstart) for the full collection flow.
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Pricing & Math" icon="calculator" href="/home/learn/pricing-and-math">
+    Full formulas for YT pricing, yield accrual, leverage, and time decay
+  </Card>
+  <Card title="SDK Quickstart" icon="code" href="/yield-stripping/sdk-quickstart">
+    Start building with the yield stripping SDK
+  </Card>
+</CardGroup>

@@ -1,0 +1,82 @@
+---
+title: Market Offer
+description: Low-level instruction to execute a market order on the orderbook
+---
+
+# createMarketOfferInstruction
+
+Builds a raw instruction to execute a market order that fills against existing limit orders on the orderbook, allowing users to instantly buy or sell YT tokens at the best available prices.
+
+## Usage
+
+```typescript
+import { createMarketOfferInstruction } from "@exponent-labs/exponent-orderbook-client";
+import { PublicKey } from "@solana/web3.js";
+
+const ix = createMarketOfferInstruction(
+  {
+    trader: wallet.publicKey,
+    orderbook: orderbookAddress,
+    vault: vaultAddress,
+    cpiAccountOrderbook: cpiAccountsOrderbook,
+    yieldPosition: yieldPositionAddress,
+    tokenEscrowYt: orderbookYtEscrow,
+    tokenEscrowSy: orderbookSyEscrow,
+    tokenEscrowPt: orderbookPtEscrow,
+    tokenSyTrader: userSyTokenAccount,
+    tokenYtTrader: userYtTokenAccount,
+    tokenPtTrader: userPtTokenAccount,
+    systemProgram: SYSTEM_PROGRAM_ID,
+    syProgram: syProgramId,
+    tokenProgram: TOKEN_2022_PROGRAM_ID,
+    exponentCore: EXPONENT_CORE_PROGRAM_ID,
+    addressLookupTable: vaultLookupTable,
+    eventAuthority: eventAuthorityPda,
+    program: EXPONENT_ORDERBOOK_PROGRAM_ID,
+  },
+  {
+    maxPriceApy: 7.5,
+    amount: BigInt(1_000_000),
+    minAmountOut: BigInt(900_000),
+    offerType: { buyYt: {} },
+    virtualOffer: false,
+  }
+);
+```
+
+## Accounts
+
+| Name | Type | Signer | Writable | Description |
+|------|------|--------|----------|-------------|
+| `trader` | `PublicKey` | Yes | No | The user executing the market order |
+| `orderbook` | `PublicKey` | No | Yes | Orderbook account |
+| `vault` | `PublicKey` | No | Yes | Vault account |
+| `cpiAccountOrderbook` | `PublicKey` | No | No | CPI accounts orderbook |
+| `yieldPosition` | `PublicKey` | No | Yes | Vault robot yield position |
+| `tokenEscrowYt` | `PublicKey` | No | Yes | Orderbook YT escrow account |
+| `tokenEscrowSy` | `PublicKey` | No | Yes | Orderbook SY escrow account |
+| `tokenEscrowPt` | `PublicKey` | No | Yes | Orderbook PT escrow account |
+| `tokenSyTrader` | `PublicKey` | No | Yes | Trader SY token account |
+| `tokenYtTrader` | `PublicKey` | No | Yes | Trader YT token account |
+| `tokenPtTrader` | `PublicKey` | No | Yes | Trader PT token account |
+| `systemProgram` | `PublicKey` | No | No | System program |
+| `syProgram` | `PublicKey` | No | No | SY program |
+| `tokenProgram` | `PublicKey` | No | No | SPL Token 2022 program |
+| `exponentCore` | `PublicKey` | No | No | Exponent Core program |
+| `addressLookupTable` | `PublicKey` | No | No | Vault address lookup table |
+| `eventAuthority` | `PublicKey` | No | No | Event authority PDA |
+| `program` | `PublicKey` | No | No | Exponent Orderbook program |
+
+## Args
+
+| Name | Type | Description |
+|------|------|-------------|
+| `maxPriceApy` | `number` | Maximum price in implied APY (f64) |
+| `amount` | `bigint` | Amount of tokens to trade (in base units) |
+| `minAmountOut` | `bigint` | Minimum amount of tokens to receive (slippage protection) |
+| `offerType` | `OfferType` | Type of offer: `{ sellYt: {} }` or `{ buyYt: {} }` |
+| `virtualOffer` | `boolean` | Whether this is a virtual offer |
+
+## Returns
+
+`TransactionInstruction` — a Solana transaction instruction ready to be added to a transaction.

@@ -1,0 +1,62 @@
+---
+title: Wrapper Collect Interest
+description: Low-level instruction to collect interest and unwrap to base asset atomically
+---
+
+# createWrapperCollectInterestInstruction
+
+Builds a raw instruction that collects accrued interest from a yield position and unwraps the SY to the base asset in a single atomic operation.
+
+## Usage
+
+```typescript
+import { createWrapperCollectInterestInstruction } from "@exponent-labs/exponent-core-client";
+import { PublicKey } from "@solana/web3.js";
+
+const ix = createWrapperCollectInterestInstruction(
+  {
+    claimer: wallet.publicKey,
+    authority: vaultAuthority,
+    vault: vaultAddress,
+    addressLookupTable: vaultLookupTable,
+    escrowSy: vaultEscrowSy,
+    syProgram: syProgramId,
+    tokenProgram: TOKEN_PROGRAM_ID,
+    yieldPosition: userYieldPositionPda,
+    tokenSyDst: userSyTokenAccount,
+    treasurySyTokenAccount: treasurySyAccount,
+    eventAuthority: eventAuthorityPda,
+    program: EXPONENT_CORE_PROGRAM_ID,
+  },
+  {
+    redeemSyAccountsLength: 0,
+  }
+);
+```
+
+## Accounts
+
+| Name | Type | Signer | Writable | Description |
+|------|------|--------|----------|-------------|
+| `claimer` | `PublicKey` | Yes | Yes | The user collecting interest |
+| `authority` | `PublicKey` | No | Yes | Vault authority PDA |
+| `vault` | `PublicKey` | No | Yes | Vault account |
+| `addressLookupTable` | `PublicKey` | No | No | Vault address lookup table |
+| `escrowSy` | `PublicKey` | No | Yes | Vault SY escrow account |
+| `syProgram` | `PublicKey` | No | No | SY program |
+| `tokenProgram` | `PublicKey` | No | No | SPL Token program |
+| `yieldPosition` | `PublicKey` | No | Yes | User's yield position PDA |
+| `tokenSyDst` | `PublicKey` | No | Yes | Destination SY token account |
+| `treasurySyTokenAccount` | `PublicKey` | No | Yes | Treasury SY token account (fees) |
+| `eventAuthority` | `PublicKey` | No | No | Event authority PDA |
+| `program` | `PublicKey` | No | No | Exponent Core program |
+
+## Args
+
+| Name | Type | Description |
+|------|------|-------------|
+| `redeemSyAccountsLength` | `number` | Number of remaining accounts for SY redemption CPI |
+
+## Returns
+
+`TransactionInstruction` — a Solana transaction instruction ready to be added to a transaction.

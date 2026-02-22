@@ -1,0 +1,56 @@
+---
+title: Collect Interest
+description: Collect accrued interest from a yield position via the Vault
+---
+
+The `ixCollectInterest` method on the `Vault` class creates a transaction instruction that collects accrued interest (paid in SY) from a yield position.
+
+## Usage
+
+```typescript
+import { Vault, LOCAL_ENV } from "@exponent-labs/exponent-sdk";
+import { amount } from "@exponent-labs/exponent-core-client";
+import { Connection, PublicKey, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
+
+const connection = new Connection("https://api.mainnet-beta.solana.com");
+const vault = await Vault.load(LOCAL_ENV, connection, vaultAddress);
+
+// Collect all available interest
+const ix = vault.ixCollectInterest({
+  owner: wallet.publicKey,
+  amount: amount("All"),
+});
+
+const tx = new Transaction().add(ix);
+const signature = await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+To collect a specific amount:
+
+```typescript
+const ix = vault.ixCollectInterest({
+  owner: wallet.publicKey,
+  amount: amount("Some", [500_000n]),
+});
+```
+
+## Required Parameters
+
+| Parameter | Type        | Description                       |
+| --------- | ----------- | --------------------------------- |
+| `owner`   | `PublicKey`  | The owner's wallet public key     |
+| `amount`  | `Amount`     | `amount("All")` or `amount("Some", [value])` |
+
+## Optional Parameters
+
+| Parameter | Type        | Description                                          |
+| --------- | ----------- | ---------------------------------------------------- |
+| `syDst`   | `PublicKey`  | Destination SY token account. Defaults to owner's ATA |
+
+## Returns
+
+Returns a `TransactionInstruction` that transfers accrued SY interest to the owner.
+
+<Note>
+You must [stage yield](/yield-stripping/typescript/yt-instructions/ix-stage-yield) before collecting. Staging computes the earned interest from the exchange rate delta.
+</Note>

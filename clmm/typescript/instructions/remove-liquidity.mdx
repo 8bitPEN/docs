@@ -1,0 +1,33 @@
+---
+title: Remove Liquidity
+description: Remove liquidity from a CLMM position
+---
+
+The `removeLiquidity` instruction withdraws tokens from an existing position and collects any accrued fees.
+
+## Usage
+
+```typescript
+import { BN } from "@coral-xyz/anchor";
+
+const ix = await pool.removeLiquidity({
+  provider: wallet.publicKey,
+  positionIndex: 0,
+  amount: new BN(500_000_000),
+});
+
+const tx = new Transaction().add(ix);
+const signature = await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+## Required Parameters
+
+| Parameter       | Type        | Description                     |
+| --------------- | ----------- | ------------------------------- |
+| `provider`      | `PublicKey` | The liquidity provider's wallet  |
+| `positionIndex` | `number`    | Index of the position to modify  |
+| `amount`        | `BN`        | Amount of liquidity to remove    |
+
+## Returns
+
+Returns a `TransactionInstruction` that removes liquidity and collects fees.

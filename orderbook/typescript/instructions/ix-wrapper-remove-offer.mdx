@@ -1,0 +1,67 @@
+---
+title: Remove Order
+description: Remove an existing order from the orderbook
+---
+
+The `ixWrapperRemoveOffer` instruction removes an existing order from the Exponent orderbook.
+
+## Usage
+
+```typescript
+import { PublicKey } from "@solana/web3.js";
+
+const ix = await orderbook.ixWrapperRemoveOffer({
+  // The trader's wallet public key
+  trader: wallet.publicKey,
+  // The index of the offer to remove (from getUserOpenOrders)
+  offerIdx: 0,
+  // The SY token mint address
+  mintSy: syMintAddress,
+});
+```
+
+## Required Parameters
+
+| Parameter  | Type        | Description                      |
+| ---------- | ----------- | -------------------------------- |
+| `trader`   | `PublicKey` | The trader's wallet public key   |
+| `offerIdx` | `number`    | The index of the offer to remove |
+| `mintSy`   | `PublicKey` | The SY token mint address        |
+
+## Optional Parameters
+
+| Parameter         | Type        | Description                       |
+| ----------------- | ----------- | --------------------------------- |
+| `ptSrc`           | `PublicKey` | PT token source account           |
+| `ytSrc`           | `PublicKey` | YT token source account           |
+| `sySrc`           | `PublicKey` | SY token source account           |
+| `tokenBaseTrader` | `PublicKey` | Base token account for the trader |
+
+## Returns
+
+Returns a `TransactionInstruction` that removes the specified order from the orderbook.
+
+<Note>
+Removing an order automatically stages any accrued YT interest before returning tokens to your escrow. Collect staged interest separately via [ixWrapperCollectInterest](/orderbook/typescript/instructions/ix-wrapper-collect-interest).
+</Note>
+
+## Finding the Offer Index
+
+Use `getUserOpenOrders` to get the list of open orders and their indices:
+
+```typescript
+const openOrders = orderbook.getUserOpenOrders(wallet.publicKey);
+
+for (const order of openOrders) {
+  console.log("Offer index:", order.offerIndex);
+  console.log("Amount:", order.amount);
+  console.log("Price APY:", order.priceApy);
+}
+
+// Remove the first open order
+const ix = await orderbook.ixWrapperRemoveOffer({
+  trader: wallet.publicKey,
+  offerIdx: openOrders[0].offerIndex,
+  mintSy: syMintAddress,
+});
+```

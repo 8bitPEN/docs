@@ -1,0 +1,37 @@
+---
+title: Initialize Yield Position
+description: Create a yield position account before depositing YT
+---
+
+The `ixInitializeYieldPosition` method on the `Vault` class creates a transaction instruction that initializes a `YieldTokenPosition` PDA for a user. This must be called once per vault before the user can deposit YT.
+
+## Usage
+
+```typescript
+import { Vault, LOCAL_ENV } from "@exponent-labs/exponent-sdk";
+import { Connection, PublicKey, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
+
+const connection = new Connection("https://api.mainnet-beta.solana.com");
+const vault = await Vault.load(LOCAL_ENV, connection, vaultAddress);
+
+const ix = vault.ixInitializeYieldPosition({
+  owner: wallet.publicKey,
+});
+
+const tx = new Transaction().add(ix);
+const signature = await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+## Required Parameters
+
+| Parameter | Type        | Description                       |
+| --------- | ----------- | --------------------------------- |
+| `owner`   | `PublicKey`  | The owner's wallet public key     |
+
+## Returns
+
+Returns a `TransactionInstruction` that creates the yield position PDA. The account is derived from the owner's public key and the vault address.
+
+<Tip>
+This is a one-time operation per vault. After initialization, use [`YtPosition.loadByOwner`](/yield-stripping/typescript/read-functions/get-yield-position) to load the position and start depositing YT.
+</Tip>

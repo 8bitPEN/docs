@@ -1,0 +1,43 @@
+---
+title: Collect Interest
+description: Collect accrued interest from open orders
+---
+
+The `ixWrapperCollectInterest` instruction collects accrued interest from YT held in open orders, as well as held from filled orders on the Exponent orderbook.
+
+## Usage
+
+```typescript
+import { PublicKey } from "@solana/web3.js";
+
+const ix = await orderbook.ixWrapperCollectInterest({
+  // The trader's wallet public key
+  trader: wallet.publicKey,
+  // The SY token mint address
+  mintSy: syMintAddress,
+});
+```
+
+## Required Parameters
+
+| Parameter | Type        | Description                    |
+| --------- | ----------- | ------------------------------ |
+| `trader`  | `PublicKey` | The trader's wallet public key |
+| `mintSy`  | `PublicKey` | The SY token mint address      |
+
+## Optional Parameters
+
+| Parameter         | Type        | Description                       |
+| ----------------- | ----------- | --------------------------------- |
+| `sySrc`           | `PublicKey` | SY token source account           |
+| `tokenBaseTrader` | `PublicKey` | Base token account for the trader |
+
+## Returns
+
+Returns a `TransactionInstruction` that collects accrued interest and transfers it to the trader's SY token account.
+
+## How It Works
+
+YT held in open orders continuously accrues yield. Interest is **staged automatically** during order fills and removals — you don't need to trigger staging manually. This instruction transfers the staged SY from your escrow to your token account.
+
+Staged interest is tracked separately from your trading balances (PT, YT, SY). To withdraw trading balances, use [ixWrapperWithdrawFunds](/orderbook/typescript/instructions/ix-wrapper-withdraw-funds).

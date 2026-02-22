@@ -1,0 +1,78 @@
+---
+title: Get Quote
+description: Get a quote for a trade on the orderbook
+---
+
+The `getQuote` function calculates a quote for a potential trade on the Exponent orderbook.
+
+## Usage
+
+```typescript
+import { Connection } from "@solana/web3.js";
+
+// Get the current Unix timestamp from Solana's clock
+const clock = await connection.getClock();
+const unixNow = Number(clock.unixTimestamp);
+
+const quote = orderbook.getQuote({
+  // Input amount in lamports
+  inAmount: 1_000_000_000,
+  // The direction of the trade
+  direction: QuoteDirection.SY_TO_PT,
+  // Current Unix timestamp from Solana's clock
+  unixNow: unixNow,
+  // The SY exchange rate (e.g., 1.000009210084)
+  syExchangeRate: 1.000009210084,
+});
+
+console.log("Expected output:", quote.outAmount);
+console.log("Maker fees:", quote.makerFees);
+console.log("Taker fees:", quote.takerFees);
+```
+
+## Parameters
+
+| Parameter        | Type             | Required | Description                                    |
+| ---------------- | ---------------- | -------- | ---------------------------------------------- |
+| `inAmount`       | `number`         | Yes      | Input amount in lamports                       |
+| `direction`      | `QuoteDirection` | Yes      | The direction of the trade                     |
+| `unixNow`        | `number`         | Yes      | Current Unix timestamp from Solana's clock     |
+| `syExchangeRate` | `number`         | Yes      | The SY exchange rate (e.g., `1.000009210084`)  |
+| `priceApy`       | `number`         | No       | Price in APY percentage (e.g., `5.5` for 5.5%) |
+
+## QuoteDirection
+
+The `QuoteDirection` enum specifies the trade direction:
+
+```typescript
+enum QuoteDirection {
+  BASE_TO_YT,
+  BASE_TO_PT,
+  YT_TO_BASE,
+  PT_TO_BASE,
+  SY_TO_YT,
+  SY_TO_PT,
+  YT_TO_SY,
+  PT_TO_SY,
+}
+```
+
+## Getting the Unix Timestamp
+
+Use Solana's clock for accurate timing. Avoid `Date.now()` as it may drift from the on-chain clock:
+
+```typescript
+import { Connection } from "@solana/web3.js";
+
+const connection = new Connection("https://api.mainnet-beta.solana.com");
+const clock = await connection.getClock();
+const unixNow = Number(clock.unixTimestamp);
+```
+
+## Returns
+
+Returns an object with:
+
+- `outAmount` - Expected output amount in lamports
+- `makerFees` - Total maker fees charged in lamports
+- `takerFees` - Total taker fees charged in lamports

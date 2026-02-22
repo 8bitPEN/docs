@@ -1,0 +1,142 @@
+---
+title: AI & LLM Integration
+description: Use Exponent's agent-friendly docs with Claude, Cursor, Copilot, and other AI coding tools
+---
+
+Exponent's documentation is built to be consumed by AI agents as accurately as by humans. This page explains the files and integrations available.
+
+The [Learn section](/home/learn/standardized-yield) is the authoritative source for protocol concepts (SY, PT, YT, pricing, maturity). Protocol tabs (Yield Stripping, CLMM, Orderbook) focus on SDK usage and link back to Learn for conceptual depth.
+
+## Why This Matters
+
+AI coding assistants hallucinate API signatures when they don't have structured, current documentation. A single wrong parameter type in a Solana transaction means lost funds. Exponent provides three machine-readable files that give agents exact method signatures, parameter types, and usage patterns — verified against the SDK source.
+
+---
+
+## llms.txt
+
+A structured index file following the [llms.txt standard](https://llmstxt.org/). This is the first file an agent should fetch when working with Exponent.
+
+**URL:** `/llms.txt`
+
+**Contains:**
+- Package name and install command
+- All Solana program IDs
+- Links to every documentation section with descriptions
+- Key classes and their load patterns
+- Supported yield source flavors
+
+**How agents use it:** When an AI tool sees `@exponent-labs/exponent-sdk` in your codebase, it fetches `llms.txt` to understand what the SDK does and where to find details.
+
+---
+
+## llms-full.txt
+
+The complete API reference — every public method on every class, with exact parameter names, types, and return types.
+
+**URL:** `/llms-full.txt`
+
+**Contains:**
+- Core concepts summary with key formulas (PT pricing, YT yield, fee decay, strip/merge)
+- Every method on `Vault`, `MarketThree`, `Orderbook`, `Router`, `YtPosition`, `LpPosition`
+- Full parameter signatures (e.g., `ixBuyPt({ trader: PublicKey, amountSy: bigint, outConstraint: bigint, ... })`)
+- Return types (e.g., `{ ixs: TransactionInstruction[], setupIxs: TransactionInstruction[] }`)
+- Environment configuration and program IDs
+- Utility exports
+
+**When to use:** When you need an agent to write a specific SDK call and want it to get the types right.
+
+---
+
+## SKILL.md
+
+An operational knowledge file that turns an AI agent into a competent Exponent SDK user. Unlike `llms.txt` (an index) and `llms-full.txt` (a reference), `SKILL.md` teaches the agent *how to think* about Exponent.
+
+**URL:** `/SKILL.md`
+
+**Contains:**
+- Setup pattern (the exact imports and initialization code to always use)
+- Decision tree: "I need to do X" → use this exact class and method
+- Constraints (CU limits, ALT requirements, YieldPosition initialization)
+- Common mistakes and how to avoid them
+
+**Example decision from SKILL.md:**
+
+```
+Goal: Post a limit order at 12% APY
+→ Class: Orderbook
+→ Method: ixWrapperPostOffer
+→ Note: Returns { ix, setupIxs } — include both in transaction
+```
+
+---
+
+## MCP Integration
+
+Exponent docs support the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/), which lets AI tools query documentation programmatically.
+
+MCP is enabled in the Exponent docs configuration. AI tools that support MCP can connect directly to the docs server and retrieve page content, code examples, and API references on demand.
+
+### Using with Cursor
+
+1. Open Cursor settings
+2. Go to **MCP Servers**
+3. Add the Exponent docs MCP endpoint
+4. Cursor will now pull Exponent API references when you write SDK code
+
+### Using with Claude Code
+
+Claude Code can fetch `llms.txt` and `SKILL.md` directly via URL. You can also add the docs as an MCP server in your Claude Code configuration:
+
+```json
+{
+  "mcpServers": {
+    "exponent-docs": {
+      "url": "https://your-docs-url/mcp"
+    }
+  }
+}
+```
+
+### Using with VS Code Copilot
+
+Add `llms-full.txt` as a workspace reference file. Copilot will use it to generate correct SDK calls:
+
+1. Download `llms-full.txt` to your project root
+2. Copilot automatically includes workspace files in its context
+3. SDK method signatures will now be accurate
+
+---
+
+## Contextual AI Options
+
+Every page in the Exponent docs includes contextual AI actions. Click the **AI** button on any code block to:
+
+- **Copy** — Copy the code to clipboard
+- **Open in ChatGPT** — Send the code block to ChatGPT with context
+- **Open in Claude** — Send to Claude with surrounding documentation
+- **Open in Perplexity** — Search with Perplexity AI
+- **Open in Cursor** — Import into Cursor editor
+- **Open in VS Code** — Import into VS Code
+
+---
+
+## Best Practices
+
+### For Individual Developers
+
+1. **Point your AI tool at `SKILL.md`** before starting an integration. This gives it the decision tree and constraints.
+2. **Use `llms-full.txt` for reference calls.** When the agent needs exact parameter types, this file has them.
+3. **Verify against the docs.** Agent output should match what's documented on the instruction pages.
+
+### For Teams
+
+1. **Add `SKILL.md` to your repo** as a reference file. All team members' AI tools will pick it up.
+2. **Pin the SDK version.** `llms-full.txt` documents the current `@exponent-labs/exponent-sdk` API. If you use a different version, parameter types may differ.
+3. **Use MCP for live access.** MCP gives agents real-time access to the latest docs, not a cached snapshot.
+
+### For Protocol Integrators
+
+1. **Start with the decision tree** in `SKILL.md` to choose the right protocol and methods.
+2. **Feed `llms-full.txt` to your agent** and ask it to scaffold the integration.
+3. **Cross-reference with the [Integration Guide](/home/integration-guide)** for production-ready patterns.
