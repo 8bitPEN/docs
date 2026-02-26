@@ -62,15 +62,15 @@ Non-virtual orders trade YT directly against counter-orders — no strip or merg
 Set `virtualOffer: true` when posting or executing orders for PT:
 
 ```typescript
-import * as exponentOrderbook from "@exponent-labs/exponent-orderbook-client";
+import { OfferType, offerOptions } from "@exponent-labs/exponent-sdk";
 
 // Post a virtual order to buy PT (SY → PT)
 const { ix, setupIxs } = await orderbook.ixWrapperPostOffer({
   trader: wallet.publicKey,
   price: 5.0,
   amount: new BN(1_000_000_000),
-  offerType: exponentOrderbook.OfferType.SellYt,
-  offerOption: exponentOrderbook.offerOptions("FillOrKill", [false]),
+  offerType: OfferType.SellYt,
+  offerOption: offerOptions("FillOrKill", [false]),
   virtualOffer: true,
   expirySeconds: 3600,
   mintSy: syMintAddress,

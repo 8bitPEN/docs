@@ -10,7 +10,7 @@ Builds a raw instruction to collect accrued SY interest earned by a trader's pos
 ## Usage
 
 ```typescript
-import { createCollectInterestInstruction, amount } from "@exponent-labs/exponent-orderbook-client";
+import { createCollectInterestInstruction, amount } from "@exponent-labs/exponent-sdk/client/orderbook";
 import { PublicKey } from "@solana/web3.js";
 
 const ix = createCollectInterestInstruction(
@@ -62,7 +62,7 @@ const ix = createCollectInterestInstruction(
 ### Amount Helper
 
 ```typescript
-import { amount } from "@exponent-labs/exponent-orderbook-client";
+import { amount } from "@exponent-labs/exponent-sdk/client/orderbook";
 
 amount("All")                // collect everything available
 amount("Some", [500_000n])   // collect a specific amount

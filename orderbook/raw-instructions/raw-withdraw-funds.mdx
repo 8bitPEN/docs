@@ -10,7 +10,7 @@ Builds a raw instruction to withdraw PT, YT, and/or SY tokens that are held in t
 ## Usage
 
 ```typescript
-import { createWithdrawFundsInstruction, amount } from "@exponent-labs/exponent-orderbook-client";
+import { createWithdrawFundsInstruction, amount } from "@exponent-labs/exponent-sdk/client/orderbook";
 import { PublicKey } from "@solana/web3.js";
 
 const ix = createWithdrawFundsInstruction(
@@ -74,7 +74,7 @@ const ix = createWithdrawFundsInstruction(
 ### Amount Helper
 
 ```typescript
-import { amount } from "@exponent-labs/exponent-orderbook-client";
+import { amount } from "@exponent-labs/exponent-sdk/client/orderbook";
 
 amount("All")                // withdraw everything available
 amount("Some", [500_000n])   // withdraw a specific amount

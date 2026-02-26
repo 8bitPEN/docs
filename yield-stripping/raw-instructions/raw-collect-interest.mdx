@@ -10,7 +10,7 @@ Builds a raw instruction to collect accrued interest (paid in SY) from a yield p
 ## Usage
 
 ```typescript
-import { createCollectInterestInstruction, amount } from "@exponent-labs/exponent-core-client";
+import { createCollectInterestInstruction, amount } from "@exponent-labs/exponent-sdk/client/core";
 import { PublicKey } from "@solana/web3.js";
 
 // Collect all accrued interest
@@ -69,7 +69,7 @@ const ixPartial = createCollectInterestInstruction(
 ### Amount Helper
 
 ```typescript
-import { amount } from "@exponent-labs/exponent-core-client";
+import { amount } from "@exponent-labs/exponent-sdk/client/core";
 
 amount("All")                // collect everything available
 amount("Some", [500_000n])   // collect a specific amount

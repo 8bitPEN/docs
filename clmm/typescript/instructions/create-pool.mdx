@@ -8,7 +8,7 @@ The `createPool` instruction initializes a new concentrated liquidity pool on th
 ## Usage
 
 ```typescript
-import { BN } from "@coral-xyz/anchor";
+import BN from "bn.js";
 import { PublicKey } from "@solana/web3.js";
 
 const { ix, setupIxs } = await clmm.createPool({

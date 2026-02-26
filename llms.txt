@@ -38,7 +38,7 @@
 
 ### Guides
 - [Integration Guide](home/integration-guide): Production code examples combining all three protocols
-- [AI & LLM Integration](home/ai-integration): How to use llms.txt, SKILL.md, and MCP with AI coding tools
+- [AI & LLM Integration](home/ai-integration): How to use llms.txt, skill.md, and llms-full.txt with AI coding tools
 
 ### Yield Stripping
 - [Overview](yield-stripping/overview): Strip SY into PT + YT, merge back, SDK classes (Vault, YtPosition)
@@ -92,6 +92,6 @@
 ## Optional
 
 - [llms-full.txt](llms-full.txt): Complete API reference with every method signature, parameter type, and return type
-- [SKILL.md](SKILL.md): Agent skill file with decision trees, setup patterns, constraints, and common mistakes
+- [skill.md](skill.md): Agent skill file with decision trees, setup patterns, constraints, and common mistakes
 - [AGENTS.md](AGENTS.md): Documentation editing instructions with terminology glossary, page templates, and style rules
 - [Programs](home/programs): All on-chain program addresses with SDK usage examples

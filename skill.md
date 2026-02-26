@@ -6,7 +6,7 @@ You are an AI coding agent helping a developer integrate with the Exponent proto
 
 - **Chain:** Solana (mainnet-beta)
 - **Package:** `@exponent-labs/exponent-sdk` (single package, no per-protocol packages)
-- **Dependencies:** `@solana/web3.js ^1.98`, `@coral-xyz/anchor ^0.30`
+- **Dependencies:** `@solana/web3.js ^1.98`, `bn.js ^5.2`
 - **All amounts:** lamports (raw `bigint` or `BN`). Never use decimals unless converting for display.
 - **All orderbook prices:** APY as a decimal number (e.g., `0.12` = 12% APY)
 - **Environment config:** Always use `LOCAL_ENV` from the SDK. Never hardcode program IDs.
@@ -17,8 +17,8 @@ You are an AI coding agent helping a developer integrate with the Exponent proto
 import { Connection, PublicKey, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
 import { Vault, MarketThree, Orderbook, Router, LOCAL_ENV } from "@exponent-labs/exponent-sdk";
 
-// Orderbook types and helpers come from the client package:
-import { OfferType, offerOptions, amount } from "@exponent-labs/exponent-orderbook-client";
+// Orderbook types and helpers are re-exported from the SDK:
+import { OfferType, offerOptions, amount } from "@exponent-labs/exponent-sdk";
 
 const connection = new Connection("https://api.mainnet-beta.solana.com", "confirmed");
 
@@ -94,9 +94,9 @@ const tx = new Transaction().add(...setupIxs, ix);
 - **CLMM:** Requires Address Lookup Tables (ALTs) for CPI accounts. The SDK handles this internally.
 - **YT yield collection:** Must call `ixInitializeYieldPosition` once per vault per user before depositing YT.
 - **YT deposit flow:** Initialize position → `ixDepositYt` → (time passes) → `ixStageYield` → `ixCollectInterest`.
-- **Orderbook offer types:** `OfferType.SellYt` = maker sells YT for SY (deposit YT, receive SY when matched). `OfferType.BuyYt` = maker buys YT with SY (deposit SY, receive YT when matched). Import `OfferType` from `@exponent-labs/exponent-orderbook-client`.
+- **Orderbook offer types:** `OfferType.SellYt` = maker sells YT for SY (deposit YT, receive SY when matched). `OfferType.BuyYt` = maker buys YT with SY (deposit SY, receive YT when matched). Import `OfferType` from `@exponent-labs/exponent-sdk`.
 - **Virtual offers:** Set `virtualOffer: true` to trade PT without handling YT. The orderbook auto-strips/merges.
-- **Offer options:** `offerOptions("FillOrKill", [true])` = fill entirely or revert. `offerOptions("FillOrKill", [false])` = allow partial fills. Import `offerOptions` from `@exponent-labs/exponent-orderbook-client`.
+- **Offer options:** `offerOptions("FillOrKill", [true])` = fill entirely or revert. `offerOptions("FillOrKill", [false])` = allow partial fills. Import `offerOptions` from `@exponent-labs/exponent-sdk`.
 
 ## Common Mistakes
 

@@ -30,7 +30,7 @@ import {
   sendAndConfirmTransaction,
   Keypair,
 } from "@solana/web3.js";
-import { BN } from "@coral-xyz/anchor";
+import BN from "bn.js";
 
 const connection = new Connection("https://api.mainnet-beta.solana.com");
 const wallet = Keypair.fromSecretKey(/* your keypair */);
@@ -71,14 +71,14 @@ Always use `connection.getClock()` for the `unixNow` parameter — `Date.now()` 
 Use `ixWrapperPostOffer` to place a limit order on the orderbook. The wrapper handles token account creation automatically.
 
 ```typescript
-import * as exponentOrderbook from "@exponent-labs/exponent-orderbook-client";
+import { OfferType, offerOptions } from "@exponent-labs/exponent-sdk";
 
 const { ix, setupIxs } = await orderbook.ixWrapperPostOffer({
   trader: wallet.publicKey,
   price: 5.0,
   amount: new BN(1_000_000_000),
-  offerType: exponentOrderbook.OfferType.SellYt,
-  offerOption: exponentOrderbook.offerOptions("FillOrKill", [false]),
+  offerType: OfferType.SellYt,
+  offerOption: offerOptions("FillOrKill", [false]),
   virtualOffer: false,
   expirySeconds: 3600,
   mintSy: syMintAddress,
@@ -97,13 +97,13 @@ The `setupIxs` array creates PT, YT, and SY token accounts if they don't exist. 
 Use `ixWrapperMarketOffer` to fill against existing orders immediately.
 
 ```typescript
-import * as exponentOrderbook from "@exponent-labs/exponent-orderbook-client";
+import { OfferType, offerOptions } from "@exponent-labs/exponent-sdk";
 
 const { ix, setupIxs } = await orderbook.ixWrapperMarketOffer({
   trader: wallet.publicKey,
   maxPriceApy: 5.5,
   amount: new BN(1_000_000_000),
-  offerType: exponentOrderbook.OfferType.BuyYt,
+  offerType: OfferType.BuyYt,
   minAmountOut: new BN(990_000_000),
   virtualOffer: false,
   mintSy: syMintAddress,
@@ -174,7 +174,7 @@ Interest accrues on YT held in open sell orders and from filled buy orders. You 
 Withdraw PT, YT, and SY from your orderbook escrow back to your wallet.
 
 ```typescript
-import { amount } from "@exponent-labs/exponent-orderbook-client";
+import { amount } from "@exponent-labs/exponent-sdk";
 
 const ix = await orderbook.ixWrapperWithdrawFunds({
   trader: wallet.publicKey,
@@ -189,7 +189,7 @@ await sendAndConfirmTransaction(connection, tx, [wallet]);
 ```
 
 <Note>
-Use `amount("All")` to withdraw all available funds, or `amount("Some", [500_000_000n])` for a specific amount. The `amount` helper is imported from `@exponent-labs/exponent-orderbook-client`.
+Use `amount("All")` to withdraw all available funds, or `amount("Some", [500_000_000n])` for a specific amount. The `amount` helper is imported from `@exponent-labs/exponent-sdk`.
 </Note>
 
 ## Reading State

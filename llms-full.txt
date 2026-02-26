@@ -2,7 +2,7 @@
 
 > Complete method signatures for @exponent-labs/exponent-sdk
 > All types from @solana/web3.js: PublicKey, Connection, TransactionInstruction, Keypair
-> BN from @coral-xyz/anchor
+> BN from bn.js
 > All amounts in lamports (bigint or BN). All orderbook prices in APY (decimal).
 
 ## Core Concepts
@@ -419,7 +419,7 @@ await orderbook.ixRemoveExpiredOffers({ admin: PublicKey }): Promise<Transaction
 
 ### Types
 
-Types and helpers are imported from `@exponent-labs/exponent-orderbook-client`:
+Types and helpers are imported from `@exponent-labs/exponent-sdk`:
 - `OfferType: OfferType.SellYt | OfferType.BuyYt`
 - `OfferOptions: offerOptions("FillOrKill", [boolean])`
 - `QuoteDirection: BASE_TO_YT | BASE_TO_PT | YT_TO_BASE | PT_TO_BASE | SY_TO_YT | SY_TO_PT | YT_TO_SY | PT_TO_SY` (from @exponent-labs/exponent-sdk)

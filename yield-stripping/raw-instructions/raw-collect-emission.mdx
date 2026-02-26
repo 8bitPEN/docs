@@ -10,7 +10,7 @@ Builds a raw instruction to collect emission rewards from a yield position. Each
 ## Usage
 
 ```typescript
-import { createCollectEmissionInstruction, amount } from "@exponent-labs/exponent-core-client";
+import { createCollectEmissionInstruction, amount } from "@exponent-labs/exponent-sdk/client/core";
 import { PublicKey } from "@solana/web3.js";
 
 const ix = createCollectEmissionInstruction(
@@ -62,7 +62,7 @@ const ix = createCollectEmissionInstruction(
 ### Amount Helper
 
 ```typescript
-import { amount } from "@exponent-labs/exponent-core-client";
+import { amount } from "@exponent-labs/exponent-sdk/client/core";
 
 amount("All")                // collect everything available
 amount("Some", [500_000n])   // collect a specific amount

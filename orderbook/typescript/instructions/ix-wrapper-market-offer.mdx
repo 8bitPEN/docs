@@ -8,9 +8,9 @@ The `ixWrapperMarketOffer` instruction executes a market order on the Exponent o
 ## Usage
 
 ```typescript
-import { BN } from "@coral-xyz/anchor";
+import BN from "bn.js";
 import { PublicKey } from "@solana/web3.js";
-import * as exponentOrderbook from "@exponent-labs/exponent-orderbook-client";
+import { OfferType } from "@exponent-labs/exponent-sdk";
 
 const { ix, setupIxs } = await orderbook.ixWrapperMarketOffer({
   // The trader's wallet public key
@@ -20,7 +20,7 @@ const { ix, setupIxs } = await orderbook.ixWrapperMarketOffer({
   // The amount to trade in lamports
   amount: new BN(1_000_000_000),
   // The type of offer - buy or sell YT
-  offerType: exponentOrderbook.OfferType.BuyYt,
+  offerType: OfferType.BuyYt,
   // Minimum amount to receive (slippage protection)
   minAmountOut: new BN(990_000_000),
   // Whether this is a virtual offer

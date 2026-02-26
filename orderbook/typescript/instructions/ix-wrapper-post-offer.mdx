@@ -8,16 +8,16 @@ The `ixWrapperPostOffer` instruction posts a limit order to the Exponent orderbo
 ## Usage
 
 ```typescript
-import { BN } from "@coral-xyz/anchor";
+import BN from "bn.js";
 import { PublicKey, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
-import * as exponentOrderbook from "@exponent-labs/exponent-orderbook-client";
+import { OfferType, offerOptions } from "@exponent-labs/exponent-sdk";
 
 const { ix, setupIxs } = await orderbook.ixWrapperPostOffer({
   trader: wallet.publicKey,
   price: 4.5,
   amount: new BN(1_000_000_000),
-  offerType: exponentOrderbook.OfferType.SellYt,
-  offerOption: exponentOrderbook.offerOptions("FillOrKill", [false]),
+  offerType: OfferType.SellYt,
+  offerOption: offerOptions("FillOrKill", [false]),
   virtualOffer: false,
   expirySeconds: 3600,
   mintSy: syMintAddress,

@@ -12,7 +12,7 @@ Builds a raw instruction to reallocate the orderbook account to accommodate more
 ## Usage
 
 ```typescript
-import { createReallocOrderbookAccountInstruction } from "@exponent-labs/exponent-orderbook-client";
+import { createReallocOrderbookAccountInstruction } from "@exponent-labs/exponent-sdk/client/orderbook";
 import { PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
 
 const ix = createReallocOrderbookAccountInstruction(

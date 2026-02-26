@@ -74,27 +74,21 @@ SDK classes and environment come from the main SDK package:
 import { Vault, MarketThree, Orderbook, Router, YtPosition, QuoteDirection, LOCAL_ENV } from "@exponent-labs/exponent-sdk";
 ```
 
-Orderbook types and helpers come from the orderbook client package:
+Common types and helpers are also re-exported from the main SDK package:
 
 ```typescript
-import { OfferType, offerOptions, amount } from "@exponent-labs/exponent-orderbook-client";
+import { OfferType, offerOptions, amount } from "@exponent-labs/exponent-sdk";
 ```
 
-Core types and helpers come from the core client package:
+Raw instructions (codama-generated) come from the SDK's client subpath exports:
 
 ```typescript
-import { amount } from "@exponent-labs/exponent-core-client";
+import { createWrapperPostOfferInstruction } from "@exponent-labs/exponent-sdk/client/orderbook";
+import { createStripInstruction } from "@exponent-labs/exponent-sdk/client/core";
+import { createBuyPtInstruction } from "@exponent-labs/exponent-sdk/client/clmm";
 ```
 
-Raw instructions (codama-generated) come from the respective client packages:
-
-```typescript
-import { createWrapperPostOfferInstruction } from "@exponent-labs/exponent-orderbook-client";
-import { createStripInstruction } from "@exponent-labs/exponent-core-client";
-import { createBuyPtInstruction } from "@exponent-labs/exponent-clmm-client";
-```
-
-Never reference `@exponent-labs/exponent-clmm-sdk` or `@exponent-labs/exponent-orderbook-sdk`. These do not exist.
+Never reference `@exponent-labs/exponent-clmm-sdk` or `@exponent-labs/exponent-orderbook-sdk`. These do not exist. The old standalone client packages (`exponent-core-client`, `exponent-clmm-client`, `exponent-orderbook-client`) have been merged into the SDK as subpath exports.
 
 ## Prepared Instructions vs Raw Instructions
 

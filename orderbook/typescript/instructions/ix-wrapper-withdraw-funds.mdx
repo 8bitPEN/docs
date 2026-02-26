@@ -14,7 +14,7 @@ Staged interest from YT accrual is **not** included in these balances. Collect i
 ## Usage
 
 ```typescript
-import { amount } from "@exponent-labs/exponent-orderbook-client";
+import { amount } from "@exponent-labs/exponent-sdk";
 import { PublicKey } from "@solana/web3.js";
 
 const ix = await orderbook.ixWrapperWithdrawFunds({
@@ -52,10 +52,10 @@ const ix = await orderbook.ixWrapperWithdrawFunds({
 
 ## Amount Helper
 
-The `amount` helper from `@exponent-labs/exponent-orderbook-client` creates the discriminated union used for withdrawal amounts:
+The `amount` helper from `@exponent-labs/exponent-sdk` creates the discriminated union used for withdrawal amounts:
 
 ```typescript
-import { amount } from "@exponent-labs/exponent-orderbook-client";
+import { amount } from "@exponent-labs/exponent-sdk";
 
 // Withdraw all available funds
 amount("All")
@@ -73,7 +73,7 @@ Returns a `TransactionInstruction` that executes the withdraw call.
 Before withdrawing, you can check the available balances using `getUserBalances`:
 
 ```typescript
-import { amount } from "@exponent-labs/exponent-orderbook-client";
+import { amount } from "@exponent-labs/exponent-sdk";
 
 const balances = orderbook.getUserBalances(wallet.publicKey);
 

@@ -10,7 +10,7 @@ Builds a raw instruction that withdraws idle funds (PT, YT, or SY) from the orde
 ## Usage
 
 ```typescript
-import { createWrapperWithdrawFundsInstruction, amount } from "@exponent-labs/exponent-orderbook-client";
+import { createWrapperWithdrawFundsInstruction, amount } from "@exponent-labs/exponent-sdk/client/orderbook";
 import { PublicKey, SystemProgram } from "@solana/web3.js";
 
 const ix = createWrapperWithdrawFundsInstruction(
