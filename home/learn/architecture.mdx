@@ -5,13 +5,14 @@ description: How Exponent's Solana programs work together
 
 ## Programs
 
-Exponent consists of three Solana programs that you interact with through the TypeScript SDK.
+Exponent consists of four Solana programs that you interact with through the TypeScript SDK.
 
 | Program | What it does | SDK class |
 |---------|-------------|-----------|
 | **exponent_core** | Yield stripping — strip SY into PT + YT, merge back, manage yield positions | `Vault` |
 | **exponent_clmm** | Concentrated liquidity AMM — buy/sell PT and YT, provide liquidity | `MarketThree` |
 | **exponent_orderbook** | Limit order book — post offers at specific APY levels, market orders | `Orderbook` |
+| **exponent_vaults** | Strategy vaults — managed funds, LP tokens, policy-gated Kamino/Marginfi deployment | `ExponentVault` |
 
 For deployed program addresses, see [Programs](/home/programs).
 
@@ -20,6 +21,7 @@ For deployed program addresses, see [Programs](/home/programs).
 - **exponent_core** is the foundation — it manages vaults, mints PT and YT, and handles yield positions. The other two programs depend on it.
 - **exponent_clmm** and **exponent_orderbook** are two independent ways to trade PT and YT. They both call into core when a trade requires stripping or merging under the hood.
 - You don't need to interact with these programs directly — the SDK wraps everything into simple method calls on `Vault`, `MarketThree`, and `Orderbook`.
+- **exponent_vaults** is a separate program that manages [Strategy Vaults](/vault-sdk/overview) — pooled capital deployed into external yield strategies (Kamino Lending, Marginfi, etc.) through Squads-based policy constraints. It does not depend on the core yield stripping programs, but its `InterfaceType` enum maps to the same protocols used by SY adapters.
 
 ## Next Steps
 

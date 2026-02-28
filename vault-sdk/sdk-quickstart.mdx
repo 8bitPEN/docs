@@ -1,0 +1,136 @@
+---
+title: SDK Quickstart
+description: Install the Exponent Vault SDK and run your first deposit
+---
+
+Set up the SDK and walk through the basic vault lifecycle — deposit tokens, receive LP shares, and queue a withdrawal.
+
+## Installation
+
+<CodeGroup>
+```bash yarn
+yarn add @exponent-labs/exponent-sdk
+```
+```bash npm
+npm install @exponent-labs/exponent-sdk
+```
+```bash pnpm
+pnpm add @exponent-labs/exponent-sdk
+```
+</CodeGroup>
+
+## Setup
+
+```typescript
+import { ExponentVault } from "@exponent-labs/exponent-sdk";
+import {
+  Connection,
+  PublicKey,
+  Transaction,
+  sendAndConfirmTransaction,
+  Keypair,
+} from "@solana/web3.js";
+import { BN } from "@coral-xyz/anchor";
+
+const connection = new Connection("https://api.mainnet-beta.solana.com");
+const wallet = Keypair.fromSecretKey(/* your keypair */);
+const vaultAddress = new PublicKey("...");
+
+// Load the vault — fetches on-chain state and all token entries
+const vault = await ExponentVault.load({ connection, address: vaultAddress });
+```
+
+## 1. Deposit Liquidity
+
+Deposit tokens into the vault and receive LP tokens representing your proportional share.
+
+```typescript
+import { BN } from "@coral-xyz/anchor";
+
+// The mint of the token you want to deposit (must be a token entry in the vault)
+const tokenMint = new PublicKey("...");
+
+const ixs = await vault.ixsDepositLiquidity({
+  // Your wallet public key
+  depositor: wallet.publicKey,
+  // The token mint to deposit
+  mint: tokenMint,
+  // Amount to deposit (in token's native units, e.g., lamports for SOL)
+  tokenAmountIn: new BN(1_000_000_000),
+  // Minimum LP tokens to receive (slippage protection)
+  minLpOut: new BN(0),
+});
+
+const tx = new Transaction().add(...ixs);
+await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+## 2. Queue a Withdrawal
+
+Lock your LP tokens and request a withdrawal. Choose a unique `withdrawalId` — a timestamp or incrementing counter works well.
+
+```typescript
+const withdrawalId = new BN(Date.now());
+
+const ix = vault.ixQueueWithdrawal({
+  depositor: wallet.publicKey,
+  withdrawalId,
+  // Amount of LP tokens to redeem
+  lpAmount: new BN(500_000_000),
+});
+
+const tx = new Transaction().add(ix);
+await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+## 3. Execute Withdrawal
+
+Once the vault manager has filled the withdrawal request, execute it to receive your underlying tokens.
+
+```typescript
+import { getAssociatedTokenAddressSync } from "@solana/spl-token";
+import { ExponentVaultsPDA } from "@exponent-labs/exponent-vaults-pda";
+
+// Token account pairs: vault escrow → your wallet ATA
+// One pair per token in the vault
+const tokenAccountPairs = vault.tokenEntries.map((entry) => ({
+  tokenSrc: ExponentVaultsPDA.tokenEntryEscrow({
+    vault: vaultAddress,
+    mint: entry.mint,
+  }),
+  tokenDst: getAssociatedTokenAddressSync(entry.mint, wallet.publicKey),
+}));
+
+const ix = vault.ixExecuteWithdrawal({
+  owner: wallet.publicKey,
+  withdrawalId,
+  tokenAccountPairs,
+});
+
+const tx = new Transaction().add(ix);
+await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+## Reading State
+
+Query vault state without sending transactions:
+
+```typescript
+// Total AUM across all token entries and strategy positions
+const aum = vault.totalAum;
+
+// All token entries with their current liquidity
+const entries = vault.tokenEntries;
+
+// Vault LP mint address
+const lpMint = vault.mintLp;
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Vault Operations" href="/vault-sdk/typescript/vault-operations/overview" />
+  <Card title="Kamino Instructions" href="/vault-sdk/typescript/kamino-instructions/overview" />
+  <Card title="Policy Builders" href="/vault-sdk/typescript/policy-builders/overview" />
+  <Card title="Account References" href="/vault-sdk/account-references/exponent-vault" />
+</CardGroup>

@@ -1,0 +1,101 @@
+---
+title: Exponent Strategy Vaults
+description: On-chain vault infrastructure for yield managers on Solana
+---
+
+# Exponent Strategy Vaults
+
+<Card>To explore opportunities to manage a vault on Exponent, reach out via [Telegram](https://t.me/wentelegram).</Card>
+
+Run your own yield operation on Solana with full on-chain transparency. Exponent Strategy Vaults give you a permissioned execution environment where every capital movement is governed by policies you define, enforced by the Solana runtime, and visible to your depositors in real time.
+
+Everything below describes what you control as a vault manager — from strategy selection to risk parameters to fee structures.
+
+## Strategy Deployment
+
+Capital in an Exponent vault is deployed into external yield protocols through a Squads-based smart account execution layer. Every strategy interaction must match an on-chain policy before it can execute. Vault managers can:
+
+- **Select yield protocols:** Deploy capital into approved lending and yield protocols through policy-gated instructions.
+- **Define allowed instructions:** Policies specify exactly which program instructions the vault is permitted to call, down to the instruction discriminator level.
+- **Constrain accounts:** Policies can require specific accounts to be present in each transaction, preventing unauthorized target changes.
+- **Set spending limits:** Per-period caps on token movement restrict how much capital can be deployed in a given timeframe.
+- **Enforce timelocks:** Introduce mandatory delays between strategy approval and execution.
+
+Without a valid matching policy, no capital movement is possible. The policy layer is enforced entirely on-chain.
+
+## Risk Controls
+
+Exponent vaults are designed with multiple layers of operational safeguards:
+
+- **Policy constraints:** Every strategy execution is validated against on-chain policies that whitelist specific programs, instructions, and accounts. No capital can move outside of pre-approved parameters.
+- **Spending limits:** Configurable per-period limits on token outflows prevent large, unauthorized deployments.
+- **Emergency pause:** The Sentinel role can freeze vault operations immediately if market conditions deteriorate or a security concern arises.
+- **Timelock buffers:** Parameter changes and new strategy approvals can be subject to enforced delays before taking effect, giving depositors time to react.
+- **On-chain enforcement:** All constraints are validated by the Solana runtime. There are no off-chain components that can be bypassed.
+
+## Role-Based Access
+
+Vault governance is enforced through four distinct roles, each with scoped permissions:
+
+| Role | Responsibilities |
+|------|-----------------|
+| **Manager** | Full control — initialize the vault, add or remove policies, update strategy positions, manage all other roles |
+| **Curator** | Add and configure token entries — define which assets the vault accepts and how they are priced |
+| **Allocator** | Execute strategy interactions (deposits, withdrawals, borrows, repayments) within the bounds of approved policies |
+| **Sentinel** | Emergency operations — pause or freeze the vault if needed |
+
+Roles can be assigned to individual wallets or smart accounts. A single entity may hold multiple roles, but production vaults typically distribute them across separate parties.
+
+## Depositor Experience
+
+Depositors interact with vaults through a straightforward lifecycle:
+
+- **Deposit:** Send supported tokens into the vault and receive LP tokens proportional to your share of total assets under management.
+- **LP tokens:** Standard SPL tokens that represent proportional vault ownership. Freely transferable and composable.
+- **Queued withdrawals:** Withdrawals are not instant. Depositors queue a withdrawal request, the vault manager fills it from available liquidity, and the depositor then executes to receive their tokens.
+- **AUM-proportional:** LP token value appreciates as vault AUM grows through yield accrual from deployed strategies.
+
+The queued withdrawal model ensures vault managers maintain control over liquidity allocation without forcing immediate liquidation of strategy positions.
+
+## Fees & AUM
+
+Vault AUM is computed on-chain as:
+
+```
+total_aum = idle_liquidity + deployed_position_value
+```
+
+- **Idle liquidity** is the sum of all tokens sitting in vault escrows that have not been deployed into a strategy.
+- **Deployed position value** is the sum of all tokens held in strategy positions — token accounts, Kamino lending obligations, and orderbook positions — valued in base units using oracle pricing.
+
+Prices are read from the Exponent Prices account, an on-chain oracle aggregator. Each accepted token has a price configuration that defines how its value is derived, supporting both simple price feeds and composite (multiply) pricing for derivative assets like LP or receipt tokens.
+
+### LP Token Pricing
+
+When a depositor deposits tokens, the LP tokens they receive are calculated as:
+
+```
+lp_tokens_received = (deposit_amount × total_lp_supply) / total_aum
+```
+
+LP tokens are standard SPL tokens. Their value appreciates proportionally as AUM grows through yield accrual. Vault managers can set a maximum LP supply to enforce a hard deposit cap.
+
+### Fee Structure
+
+Vault managers configure a treasury fee rate in basis points. This fee accrues in LP tokens to the vault treasury. The fee rate is stored on-chain and readable from the vault account at any time, giving depositors full transparency into the cost structure before they deposit.
+
+## Supported Protocols
+
+<Note>
+**Currently available:** Only **Kamino Lending** is supported in the vault SDK today. The protocols listed below as "Coming soon" are planned for future releases — the on-chain vault program supports them, but SDK tooling is not yet available.
+</Note>
+
+| Protocol | Status | What it provides |
+|----------|--------|-----------------|
+| **Kamino Lending** | Available | Lending and borrowing across multiple markets (MAIN, JLP, ALTCOINS, ETHENA, JITO, and more). Supports deposit, withdraw, borrow, and repay |
+| **Marginfi** | Coming soon | Lending positions across USDC, SOL, mSOL, and other assets |
+| **Jito Restaking** | Coming soon | Liquid staking and restaking yield |
+| **Perena** | Coming soon | Stablecoin pool yield |
+| **Generic** | Coming soon | Extensible adapter supporting Meteora, Adrena, Fragmetric, Sanctum, Jupiter Perps, and more |
+
+Additional protocol integrations can be added through the policy system without requiring changes to the core vault program.

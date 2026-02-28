@@ -1,0 +1,67 @@
+---
+title: Deposit Liquidity
+description: Deposit a supported token into the vault and receive LP tokens
+---
+
+The `ixsDepositLiquidity` method builds transaction instructions that deposit tokens into the vault and mint LP tokens to the depositor.
+
+## Usage
+
+```typescript
+import { ExponentVault } from "@exponent-labs/exponent-sdk";
+import { Connection, PublicKey, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
+import { BN } from "@coral-xyz/anchor";
+
+const connection = new Connection("https://api.mainnet-beta.solana.com");
+const vault = await ExponentVault.load({ connection, address: vaultAddress });
+
+const ixs = await vault.ixsDepositLiquidity({
+  // Your wallet public key
+  depositor: wallet.publicKey,
+  // The token mint to deposit (must be a vault token entry)
+  mint: new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"), // USDC
+  // Amount in the token's native units (e.g., 100 USDC = 100_000_000 at 6 decimals)
+  tokenAmountIn: new BN(100_000_000),
+  // Minimum LP tokens to accept (slippage protection — use 0 to skip)
+  minLpOut: new BN(0),
+});
+
+const tx = new Transaction().add(...ixs);
+const signature = await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+## Required Parameters
+
+| Parameter | Type | Description |
+| --------- | ---- | ----------- |
+| `depositor` | `PublicKey` | The depositor's wallet public key |
+| `mint` | `PublicKey` | The token mint to deposit. Must match a vault token entry |
+| `tokenAmountIn` | `BN \| bigint \| number` | Amount of tokens to deposit in native units |
+| `minLpOut` | `BN \| bigint \| number` | Minimum LP tokens to receive. Set to `0` to accept any amount |
+
+## Optional Parameters
+
+| Parameter | Type | Description |
+| --------- | ---- | ----------- |
+| `tokenSrc` | `PublicKey` | Source token account. Defaults to the depositor's ATA for `mint` |
+| `entryTokenVault` | `PublicKey` | Vault token escrow. Defaults to the Squads-controlled account defined in the token entry |
+| `tokenLpDst` | `PublicKey` | LP token destination. Defaults to the depositor's ATA for the LP mint |
+| `tokenProgram` | `PublicKey` | Token program. Defaults to `TOKEN_PROGRAM_ID` |
+
+## Returns
+
+Returns a `Promise<TransactionInstruction[]>` — an array of instructions that deposit tokens into the vault and mint LP tokens.
+
+## LP Token Calculation
+
+The amount of LP tokens minted is proportional to the deposit relative to total vault AUM:
+
+```
+LP out = (token_amount_in_base × total_lp_supply) / total_aum_in_base
+```
+
+The `minLpOut` parameter protects against price movements between transaction construction and execution.
+
+<Tip>
+To find the current exchange rate before depositing, read `vault.totalAum` and `vault.lpSupply` to compute expected LP output.
+</Tip>

@@ -6,6 +6,7 @@ You are an AI coding agent helping a developer integrate with the Exponent proto
 
 - **Chain:** Solana (mainnet-beta)
 - **Package:** `@exponent-labs/exponent-sdk` (single package, no per-protocol packages)
+- **Vault Packages:** `@exponent-labs/exponent-vaults-idl`, `@exponent-labs/exponent-vaults-pda`, `@exponent-labs/exponent-vaults-fetcher`
 - **Dependencies:** `@solana/web3.js ^1.98`, `bn.js ^5.2`
 - **All amounts:** lamports (raw `bigint` or `BN`). Never use decimals unless converting for display.
 - **All orderbook prices:** APY as a decimal number (e.g., `0.12` = 12% APY)
@@ -26,6 +27,10 @@ const connection = new Connection("https://api.mainnet-beta.solana.com", "confir
 const vault = await Vault.load(LOCAL_ENV, connection, vaultAddress);
 const market = await MarketThree.load(LOCAL_ENV, connection, marketAddress);
 const orderbook = await Orderbook.load(LOCAL_ENV, connection, orderbookAddress);
+
+// Strategy Vault
+import { ExponentVault } from "@exponent-labs/exponent-sdk";
+const strategyVault = await ExponentVault.load(LOCAL_ENV, connection, vaultAddress);
 ```
 
 ## Decision Tree
@@ -63,6 +68,12 @@ Use this to pick the right method:
 | Withdraw liquidity to base asset | `MarketThree` | `ixWithdrawLiquidityToBase({ owner, amountLp, minBaseOut, lpPosition })` |
 | Provide liquidity (classic mode) | `MarketThree` | `ixProvideLiquidityClassic({ depositor, amountBase, amountPt, minLpOut, lowerTickApy, upperTickApy })` |
 | Withdraw liquidity (classic mode) | `MarketThree` | `ixWithdrawLiquidityClassic({ owner, amountLp, lpPosition })` |
+| Deposit tokens into a strategy vault | `ExponentVault` | `ixDepositLiquidity({ depositor, mint, tokenAmountIn, minLpOut })` |
+| Queue withdrawal from vault | `ExponentVault` | `ixQueueWithdrawal({ depositor, withdrawalId, lpAmount })` |
+| Execute a filled withdrawal | `ExponentVault` | `ixExecuteWithdrawal({ owner, withdrawalId, tokenAccountPairs })` |
+| Deploy vault capital into Kamino | `kaminoInstructionBuilder` + `createVaultInteractionInstructions` | `kaminoInstructionBuilder(market, KaminoAction.DEPOSIT_COLLATERAL, asset, amount)` |
+| Create Kamino deposit policy | `createKaminoDepositPolicy` | `createKaminoDepositPolicy({ allowedReserves, allowedLendingMarkets })` |
+| Create Kamino withdraw policy | `createKaminoWithdrawPolicy` | `createKaminoWithdrawPolicy({ allowedReserves, allowedLendingMarkets })` |
 
 ## Return Types
 
@@ -97,6 +108,10 @@ const tx = new Transaction().add(...setupIxs, ix);
 - **Orderbook offer types:** `OfferType.SellYt` = maker sells YT for SY (deposit YT, receive SY when matched). `OfferType.BuyYt` = maker buys YT with SY (deposit SY, receive YT when matched). Import `OfferType` from `@exponent-labs/exponent-sdk`.
 - **Virtual offers:** Set `virtualOffer: true` to trade PT without handling YT. The orderbook auto-strips/merges.
 - **Offer options:** `offerOptions("FillOrKill", [true])` = fill entirely or revert. `offerOptions("FillOrKill", [false])` = allow partial fills. Import `offerOptions` from `@exponent-labs/exponent-sdk`.
+- **Vault withdrawals:** Not instant — must queue, wait for manager fill, then execute. Three separate transactions.
+- **Kamino prerequisites:** Must call `INIT_USER_METADATA` (once per program) and `INIT_OBLIGATION` (once per market) before depositing/withdrawing collateral. Both are idempotent.
+- **Policy requirement:** All strategy executions require a matching on-chain policy. Use policy builders to create them.
+- **Vault roles:** Manager (full control), Curator (token entries), Allocator (strategy execution), Sentinel (emergency pause).
 
 ## Common Mistakes
 
@@ -119,6 +134,7 @@ const tx = new Transaction().add(...setupIxs, ix);
 | jito_restaking_sy | `XPJitopeUEhMZVF72CvswnwrS2U2akQvk5s26aEfWv2` |
 | perena_sy | `XPerenaJPyvnjseLCn7rgzxFEum6zX1k89C13SPTyGZ` |
 | generic_sy | `XP1BRLn8eCYSygrd8er5P4GKdzqKbC3DLoSsS5UYVZy` |
+| exponent_vaults | `HycecAnELpjL1pMp435nEKWkcr7aNZ2QGQGXpzK1VEdV` |
 
 `LOCAL_ENV` contains `exponent_core` and the 5 SY program IDs. The CLMM and Orderbook program IDs come from their IDL packages and are resolved automatically by the SDK.
 
@@ -162,6 +178,14 @@ Merge:      r × PT + r × YT → 1 SY
 - [Yield Stripping](yield-stripping/sdk-quickstart) — Vault and YtPosition instructions, read functions, account references
 - [CLMM](clmm/sdk-quickstart) — MarketThree instructions, read functions, account references
 - [Orderbook](orderbook/sdk-quickstart) — Orderbook instructions, read functions, account references
+
+### Vault SDK
+- [Vault SDK Overview](vault-sdk/overview) — Architecture, LP tokens, roles, policies, getting started
+- [Concepts](vault-sdk/concepts) — Vaults, LP tokens, policies, Kamino integration, withdrawal queue
+- [SDK Quickstart](vault-sdk/sdk-quickstart) — Install, deposit, queue/execute withdrawal lifecycle
+- [Vault Operations](vault-sdk/typescript/vault-operations/overview) — Deposit, queue, execute instructions
+- [Kamino Instructions](vault-sdk/typescript/kamino-instructions/overview) — Deploy capital into Kamino reserves
+- [Policy Builders](vault-sdk/typescript/policy-builders/overview) — Construct on-chain policies for strategy execution
 
 ### Reference
 - [llms-full.txt](llms-full.txt) — Complete API reference with every method signature

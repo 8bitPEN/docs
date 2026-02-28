@@ -1,0 +1,143 @@
+---
+title: TokenEntry
+description: Token entry structure defining an accepted deposit token in a vault
+---
+
+A `TokenEntry` defines one accepted deposit token within an `ExponentStrategyVault`. Each token entry specifies how the token is priced, where its escrow accounts live, and which yield protocol it is deployed into.
+
+## TokenEntry
+
+```rust
+pub struct TokenEntry {
+    /// SPL mint of the accepted token
+    pub mint: Pubkey,
+
+    /// Price calculation method for this token's AUM contribution
+    pub price_id: PriceId,
+
+    /// Token account owned by the Squads smart account (squads_vault)
+    /// Deposited tokens land here and are deployed from here
+    pub token_squads_account: Pubkey,
+
+    /// Token account owned by the vault PDA
+    /// Holds tokens earmarked for pending withdrawals
+    pub token_escrow: Pubkey,
+
+    /// Current liquidity in this token entry (in token native units)
+    pub current_liquidity: u64,
+
+    /// Token program flag (0 = TOKEN_PROGRAM, 1 = TOKEN_2022_PROGRAM)
+    pub mint_flag: u8,
+
+    /// Which external protocol this token is deployed into
+    pub interface_type: InterfaceType,
+
+    /// Policy seeds used for force-deallocate emergency flows
+    pub force_deallocate_policy_ids: Vec<u64>,
+}
+```
+
+## InterfaceType
+
+The `interface_type` determines which yield protocol the token entry's capital is deployed through:
+
+```rust
+pub enum InterfaceType {
+    /// No specific protocol — managed generically
+    Generic,
+    /// Deployed into Kamino Lending reserves
+    Kamino,
+    /// Deployed into Marginfi lending
+    Marginfi,
+    /// Deployed into Jito Restaking
+    JitoRestaking,
+    /// Deployed into Perena yield
+    Perena,
+}
+```
+
+## PriceId
+
+The `PriceId` determines how the vault computes the base-unit value of this token for AUM calculations:
+
+```rust
+pub enum PriceId {
+    /// Single price feed: token value = price[price_id]
+    Simple { price_id: u64 },
+
+    /// Product of multiple price feeds: value = price[0] × price[1] × ...
+    /// Useful for LST pricing: LST/SOL rate × SOL/USD rate
+    Multiply { price_ids: Vec<u64> },
+}
+```
+
+Prices are read from the global `ExponentPrices` account (`["exponent_prices"]`).
+
+## Token Account Layout
+
+Each token entry uses two token accounts:
+
+| Account | Owner | Purpose |
+| ------- | ----- | ------- |
+| `token_squads_account` | Squads smart account (`squads_vault`) | Receives deposits; capital is deployed from here |
+| `token_escrow` | Vault PDA (`self_address`) | Holds tokens allocated for pending withdrawal fills |
+
+The escrow PDA is derived as:
+```
+seeds = ["token_entry_escrow", vault, mint]
+```
+
+## TypeScript Interface
+
+When constructing a vault via the SDK, token entries are specified as `TokenEntryInput`:
+
+```typescript
+import { TokenEntryInput, ExponentVaultsPDA } from "@exponent-labs/exponent-sdk";
+import { PublicKey } from "@solana/web3.js";
+import { BN } from "@coral-xyz/anchor";
+
+const tokenEntry: TokenEntryInput = {
+  // The token mint (e.g., USDC)
+  mint: new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"),
+
+  // Price source: simple oracle reference
+  priceId: { simple: { priceId: new BN(1) } },
+
+  // Squads-controlled token account for this entry
+  tokenSquadsAccount: squadsTokenAccount,
+
+  // Vault PDA-controlled escrow for withdrawals
+  tokenEscrow: ExponentVaultsPDA.tokenEntryEscrow({ vault, mint }),
+
+  // Target allocation in basis points (e.g., 5000 = 50%)
+  shareBp: 5000,
+
+  // Initial liquidity (set to 0 for new entries)
+  currentLiquidity: new BN(0),
+
+  // 0 = standard SPL token, 1 = Token-2022
+  mintFlag: 0,
+
+  // Protocol type for this entry
+  interfaceType: { kamino: {} },
+
+  // Policy IDs for emergency force-deallocate (usually empty)
+  forceDeallocatePolicyIds: [],
+};
+```
+
+## Reading Token Entries
+
+Fetch a vault's token entries after loading:
+
+```typescript
+import { ExponentVault } from "@exponent-labs/exponent-sdk";
+
+const vault = await ExponentVault.load({ connection, address: vaultAddress });
+
+for (const entry of vault.tokenEntries) {
+  console.log("Mint:", entry.mint.toBase58());
+  console.log("Interface:", entry.interfaceType);
+  console.log("Liquidity:", entry.currentLiquidity.toString());
+}
+```

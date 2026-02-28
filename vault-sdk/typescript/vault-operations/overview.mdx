@@ -1,0 +1,48 @@
+---
+title: Vault Operations
+description: Deposit, queue, and execute withdrawals from Exponent Strategy Vaults
+---
+
+The vault operations module covers the depositor-facing instructions for interacting with a Strategy Vault. These are the primary actions a user or integrator performs to move capital in and out of the vault.
+
+## Instructions
+
+<CardGroup cols={2}>
+  <Card
+    title="Deposit Liquidity"
+    icon="arrow-down-to-bracket"
+    href="/vault-sdk/typescript/vault-operations/deposit-liquidity"
+  >
+    Deposit a supported token into the vault and receive LP tokens.
+  </Card>
+  <Card
+    title="Queue Withdrawal"
+    icon="clock"
+    href="/vault-sdk/typescript/vault-operations/queue-withdrawal"
+  >
+    Lock LP tokens and queue a withdrawal request.
+  </Card>
+  <Card
+    title="Execute Withdrawal"
+    icon="arrow-up-from-bracket"
+    href="/vault-sdk/typescript/vault-operations/execute-withdrawal"
+  >
+    Execute a filled withdrawal request and receive underlying tokens.
+  </Card>
+</CardGroup>
+
+## Flow
+
+```
+deposit → [vault grows AUM, strategy executions] → queueWithdrawal → executeWithdrawal
+```
+
+1. **Deposit** tokens into the vault → receive LP tokens
+2. **Hold** LP tokens while the vault deploys capital and earns yield
+3. **Queue** a withdrawal when you want to exit — LP tokens move to escrow
+4. **Wait** for the vault manager to fill the withdrawal with the underlying tokens
+5. **Execute** to burn LP tokens and receive your funds
+
+<Note>
+Withdrawals are not instant — they go through a queue that the vault manager fills before execution. This is by design to allow the vault to unwind strategy positions orderly.
+</Note>

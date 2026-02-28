@@ -57,6 +57,9 @@ const connection = new Connection("https://api.mainnet-beta.solana.com", "confir
 - jito_restaking_sy: XPJitopeUEhMZVF72CvswnwrS2U2akQvk5s26aEfWv2
 - perena_sy: XPerenaJPyvnjseLCn7rgzxFEum6zX1k89C13SPTyGZ
 - generic_sy: XP1BRLn8eCYSygrd8er5P4GKdzqKbC3DLoSsS5UYVZy
+- exponent_vaults: HycecAnELpjL1pMp435nEKWkcr7aNZ2QGQGXpzK1VEdV
+- kamino_lending: KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD
+- squads: SMRTzfY6DfH5ik3TKiyLFfXexV8uSG3d2UksSCYdunG
 
 ---
 
@@ -491,6 +494,107 @@ Load: `const lpPos = await LpPosition.load(LOCAL_ENV, connection, address)`
 - `lpPos.lpBalance: bigint`
 - `lpPos.owner: PublicKey`
 - `lpPos.marketAddress: PublicKey`
+
+---
+
+## ExponentVault (Strategy Vaults)
+
+> Package: @exponent-labs/exponent-sdk (ExponentVault class)
+> Related packages: @exponent-labs/exponent-vaults-idl, @exponent-labs/exponent-vaults-pda, @exponent-labs/exponent-vaults-fetcher
+> Program: HycecAnELpjL1pMp435nEKWkcr7aNZ2QGQGXpzK1VEdV
+
+Load: `const vault = await ExponentVault.load(LOCAL_ENV, connection, vaultAddress)`
+
+### Vault Operations
+
+#### ixDepositLiquidity
+Deposit tokens into the vault and receive LP tokens.
+```
+vault.ixDepositLiquidity({ depositor: PublicKey, mint: PublicKey, tokenAmountIn: BN | bigint | number, minLpOut: BN | bigint | number, tokenSrc?: PublicKey, entryTokenVault?: PublicKey, tokenLpDst?: PublicKey, tokenProgram?: PublicKey }): Promise<TransactionInstruction>
+```
+
+#### ixQueueWithdrawal
+Lock LP tokens and create a withdrawal request.
+```
+vault.ixQueueWithdrawal({ depositor: PublicKey, withdrawalId: BN | bigint | number, lpAmount: BN | bigint | number, tokenLpSrc?: PublicKey, tokenLpEscrow?: PublicKey, tokenProgram?: PublicKey, systemProgram?: PublicKey }): Promise<TransactionInstruction>
+```
+
+#### ixExecuteWithdrawal
+Execute a filled withdrawal, burn LP tokens and receive underlying tokens.
+```
+vault.ixExecuteWithdrawal({ owner: PublicKey, withdrawalId: BN | bigint | number, tokenAccountPairs: { tokenSrc: PublicKey, tokenDst: PublicKey }[], tokenProgram?: PublicKey, tokenLpEscrow?: PublicKey, mintLp?: PublicKey }): Promise<TransactionInstruction>
+```
+
+### Kamino Instruction Builders
+
+#### kaminoInstructionBuilder
+Build a VaultInstruction for Kamino Lending operations.
+```
+kaminoInstructionBuilder(market: KaminoMarket, action: KaminoAction, asset?: string, amount?: BN): VaultInstruction
+```
+
+Actions: `KaminoAction.INIT_USER_METADATA`, `KaminoAction.INIT_OBLIGATION`, `KaminoAction.DEPOSIT_COLLATERAL`, `KaminoAction.WITHDRAW_COLLATERAL`
+
+#### createVaultInteractionInstructions
+Wrap vault instructions into a Squads sync transaction.
+```
+createVaultInteractionInstructions(instructions: VaultInstruction[], owner: PublicKey, connection: Connection, policyPda: PublicKey, signer: PublicKey): Promise<TransactionInstruction>
+```
+
+### Policy Builders
+
+#### createKaminoDepositPolicy
+```
+createKaminoDepositPolicy({ allowedReserves: PublicKey[], allowedLendingMarkets?: PublicKey[], spendingLimits?: SpendingLimit[], threshold?: number, timeLock?: number }): PolicyConfig
+```
+
+#### createKaminoWithdrawPolicy
+```
+createKaminoWithdrawPolicy({ allowedReserves: PublicKey[], allowedLendingMarkets?: PublicKey[], spendingLimits?: SpendingLimit[], threshold?: number, timeLock?: number }): PolicyConfig
+```
+
+#### createKaminoFullAccessPolicy
+```
+createKaminoFullAccessPolicy({ allowedReserves: PublicKey[], allowedActions: ("deposit" | "withdraw")[], allowedLendingMarkets?: PublicKey[], spendingLimits?: SpendingLimit[], threshold?: number, timeLock?: number }): PolicyConfig
+```
+
+#### vault.ixAddPolicy
+```
+vault.ixAddPolicy(policyConfig: PolicyConfig): Promise<TransactionInstruction>
+```
+
+### Properties
+
+- `vault.totalAum: number`
+- `vault.lpSupply: number`
+- `vault.mintLp: PublicKey`
+- `vault.tokenEntries: TokenEntry[]`
+
+### Types
+
+- `KaminoMarket: MAIN | JLP | ALTCOINS | ETHENA | JITO | BITCOIN | JUPITER | EXPONENT_PT_SOL | ...`
+- `KaminoAction: INIT_USER_METADATA | INIT_OBLIGATION | DEPOSIT_COLLATERAL | WITHDRAW_COLLATERAL`
+- `InterfaceType: Generic | Kamino | Marginfi | JitoRestaking | Perena`
+- `VaultType: Orderbook | Generic`
+
+### Kamino Registry
+
+```typescript
+import { KaminoMarket, KAMINO_MARKETS, KAMINO_RESERVES } from "@exponent-labs/exponent-sdk";
+const market = KAMINO_MARKETS[KaminoMarket.MAIN];
+const reserve = KAMINO_RESERVES[KaminoMarket.MAIN]["SOL"];
+```
+
+### PDA Derivation
+
+```typescript
+import { ExponentVaultsPDA } from "@exponent-labs/exponent-vaults-pda";
+const vault = ExponentVaultsPDA.vault({ seedId });
+const mintLp = ExponentVaultsPDA.mintLp({ vault });
+const tokenLpEscrow = ExponentVaultsPDA.tokenLpEscrow({ vault });
+const tokenEscrow = ExponentVaultsPDA.tokenEntryEscrow({ vault, mint });
+const withdrawal = ExponentVaultsPDA.withdrawal({ vault, owner, withdrawalId });
+```
 
 ---
 

@@ -12,6 +12,7 @@ Exponent has three core systems — **Yield Stripping**, **CLMM**, and **Orderbo
 | Split yield-bearing assets into PT + YT, lock a fixed rate, or get leveraged yield exposure | **Yield Stripping** | [Quickstart →](/yield-stripping/sdk-quickstart) |
 | Swap PT/YT instantly at market price, or provide concentrated liquidity for fees | **CLMM** | [Quickstart →](/clmm/sdk-quickstart) |
 | Place limit orders at a specific implied APY, with passive fills and YT yield accrual | **Orderbook** | [Quickstart →](/orderbook/sdk-quickstart) |
+| Deposit into a managed vault, earn yield through diversified strategies, and withdraw through a queue | **Vault SDK** | [Quickstart →](/vault-sdk/sdk-quickstart) |
 
 ## Comparison
 
@@ -24,6 +25,12 @@ Exponent has three core systems — **Yield Stripping**, **CLMM**, and **Orderbo
 | **Fees** | Protocol fee on accrued yield | Dynamic swap fee (decays toward maturity) | Maker/taker fees (decay toward maturity) |
 | **Best for** | Creating PT/YT positions | Fast swaps, providing liquidity | Passive strategies, precise APY targeting |
 | **SDK class** | `Vault`, `YtPosition` | `MarketThree` | `Orderbook` |
+
+## Strategy Vaults
+
+Strategy Vaults are a higher-level abstraction: rather than interacting with yield stripping, CLMM, or orderbook directly, depositors provide capital to a managed vault that deploys it into approved strategies (Kamino Lending, Marginfi, etc.) through policy-gated execution. Vaults issue LP tokens representing proportional ownership and use a queued withdrawal process.
+
+See the [Vault SDK](/vault-sdk/overview) for details.
 
 ## Quick SDK Examples
 
@@ -69,7 +76,7 @@ const { ix, setupIxs } = await orderbook.ixWrapperPostOffer({
 
 ## Get Started
 
-<CardGroup cols={3}>
+<CardGroup cols={4}>
   <Card title="Yield Stripping Quickstart" icon="rocket" href="/yield-stripping/sdk-quickstart">
     Strip your first position in minutes.
   </Card>
@@ -78,6 +85,9 @@ const { ix, setupIxs } = await orderbook.ixWrapperPostOffer({
   </Card>
   <Card title="Orderbook Quickstart" icon="rocket" href="/orderbook/sdk-quickstart">
     Post your first limit order.
+  </Card>
+  <Card title="Vault SDK Quickstart" icon="rocket" href="/vault-sdk/sdk-quickstart">
+    Deploy your first deposit into a strategy vault.
   </Card>
 </CardGroup>
 

@@ -30,6 +30,11 @@ Before writing or editing any instruction page, read the corresponding method in
 | **Market** / **MarketThree** | CLMM pool for PT/SY trading. Class: `MarketThree`. | "AMM" without qualifier |
 | **Orderbook** | Limit order book for PT/YT trading. Class: `Orderbook`. | "DEX", "exchange" |
 | **Flavor** | The underlying yield protocol (marginfi, kamino, jitoRestaking, perena, generic). | "adapter", "plugin" |
+| **Strategy Vault** | Multi-asset pool managed by keyholders via policy-gated execution. Class: `ExponentVault`. | "fund", "pool" (vaults are not generic pools) |
+| **Token Entry** | Configuration for an accepted deposit token in a vault. Specifies mint, escrow, interface type. | "deposit config" |
+| **LP Token** | Vault LP token representing proportional ownership of vault AUM. | "share token" |
+| **Policy** | Squads-level constraint governing which instructions the vault smart account can execute. | "permission", "rule" |
+| **InterfaceType** | The yield protocol a token entry is deployed into (Kamino, Marginfi, JitoRestaking, Perena, Generic). Maps to SY flavors. | "adapter type" |
 | **Prepared Instruction** | An `ixWrapper*` method that handles account creation, SY minting/redeeming automatically. Returns `{ ix, setupIxs }`. | "wrapped instruction" in docs |
 | **Raw Instruction** | A low-level on-chain instruction. Documented in the "Raw Instructions" section. | "prepared instruction" |
 | **Virtual Offer** | An orderbook offer backed by SY that auto-strips into PT+YT on match. Enables PT trading without handling YT. | "synthetic offer" |
@@ -37,7 +42,7 @@ Before writing or editing any instruction page, read the corresponding method in
 
 ## Documentation Structure
 
-The docs have 4 tabs:
+The docs have 5 tabs:
 
 | Tab | Purpose |
 |-----|---------|
@@ -45,6 +50,7 @@ The docs have 4 tabs:
 | **Yield Stripping** | Vault SDK — strip/merge, yield positions, emissions |
 | **Orderbook** | Limit order SDK — post/market offers, virtual offers, escrows |
 | **CLMM** | Concentrated liquidity AMM SDK — buy/sell PT/YT, provide liquidity |
+| **Vault SDK** | Strategy vault SDK — deposit/withdraw, Kamino instructions, policy builders, account references |
 
 **The Learn section** (`home/learn/`) is the single source of truth for shared protocol concepts: SY, exchange rate, PT, YT, token lifecycle, pricing formulas, maturity, and architecture. Protocol tabs must NOT re-explain these concepts — they link to Learn pages instead.
 
@@ -72,6 +78,14 @@ SDK classes and environment come from the main SDK package:
 
 ```typescript
 import { Vault, MarketThree, Orderbook, Router, YtPosition, QuoteDirection, LOCAL_ENV } from "@exponent-labs/exponent-sdk";
+```
+
+Strategy Vault classes and helpers:
+
+```typescript
+import { ExponentVault, kaminoInstructionBuilder, createVaultInteractionInstructions, KaminoAction, KaminoMarket, LOCAL_ENV } from "@exponent-labs/exponent-sdk";
+import { ExponentVaultsPDA } from "@exponent-labs/exponent-vaults-pda";
+import { ExponentVaultsFetcher } from "@exponent-labs/exponent-vaults-fetcher";
 ```
 
 Common types and helpers are also re-exported from the main SDK package:
@@ -277,6 +291,7 @@ Use `LOCAL_ENV` in examples, never hardcode these. `LOCAL_ENV` contains `exponen
 | jito_restaking_sy | `XPJitopeUEhMZVF72CvswnwrS2U2akQvk5s26aEfWv2` |
 | perena_sy | `XPerenaJPyvnjseLCn7rgzxFEum6zX1k89C13SPTyGZ` |
 | generic_sy | `XP1BRLn8eCYSygrd8er5P4GKdzqKbC3DLoSsS5UYVZy` |
+| exponent_vaults | `HycecAnELpjL1pMp435nEKWkcr7aNZ2QGQGXpzK1VEdV` |
 
 ## Common Mistakes to Prevent
 

@@ -1,0 +1,121 @@
+---
+title: Core Concepts
+description: Vaults, LP tokens, policies, and Kamino integration explained
+---
+
+## Vaults and LP Tokens
+
+A vault is a shared pool of capital managed by a team of keyholders. Depositors interact with vaults by:
+
+1. **Depositing** a supported token → receive LP tokens representing their share
+2. **Queuing a withdrawal** → lock LP tokens and request redemption
+3. **Executing the withdrawal** → burn LP tokens, receive underlying tokens back
+
+LP tokens are fungible SPL tokens. Their value appreciates as the vault earns yield and grows AUM.
+
+## Token Entries
+
+Each vault has one or more **token entries** — a configuration object for each accepted deposit token. A token entry specifies:
+
+- `mint` — the token's SPL mint address
+- `interfaceType` — the yield protocol this token is deployed into (`kamino`, `marginfi`, `generic`, etc.)
+- `priceId` — how this token's price is derived (simple oracle or multiply)
+- `tokenEscrow` / `tokenSquadsAccount` — the on-chain escrow accounts
+
+## Policies
+
+Policies are Squads-level constraints that govern what actions the vault's smart account can take. Before any strategy interaction, a matching policy must exist on-chain.
+
+A `programInteraction` policy specifies:
+- `programId` — which Solana program is allowed
+- `instructionsConstraints` — which instructions (by discriminator) are allowed, and which accounts must match
+- `spendingLimits` — optional per-period token spend caps
+- `threshold` — number of signers required (usually 1 for single-manager vaults)
+- `timeLock` — delay between approval and execution (in seconds)
+
+Policies are added by the **manager** role using `vault.ixAddPolicy(policyConfig)`.
+
+## Kamino Lending Integration
+
+<Note>
+Kamino Lending is currently the **only** yield protocol available through the vault SDK. Support for additional protocols (Marginfi, Jito Restaking, Perena) is planned for future releases.
+</Note>
+
+[Kamino Lending](https://kamino.finance) is a lending protocol on Solana. The Vault SDK supports deploying vault capital into Kamino reserves — including deposits, withdrawals, borrows, and repayments — through the `createVaultSyncTransaction` builder.
+
+### Setup Prerequisites
+
+Before interacting with Kamino, two one-time setup instructions must run for the vault owner:
+
+1. **Init User Metadata** — creates a `UserMetadata` PDA on Kamino Lending (global, one per wallet)
+2. **Init Obligation** — creates an `Obligation` PDA tied to a specific lending market (one per market)
+
+Both are **idempotent**: they check if the account already exists before issuing the instruction.
+
+### Execution Flow
+
+Every Kamino interaction requires three steps: build a descriptor, wrap it in a sync transaction, and send it.
+
+```typescript
+// 1. Build an instruction descriptor (does not execute anything on its own)
+const depositInstruction = kaminoAction.deposit(KaminoMarket.MAIN, "USDC", new BN(100_000_000));
+
+// 2. Wrap in a Squads sync transaction — resolves all accounts and refresh instructions
+const { preInstructions, instruction, postInstructions } =
+  await createVaultSyncTransaction({
+    instructions: [depositInstruction],
+    owner: vaultPda,
+    connection,
+    policyPda,
+    vaultPda,
+    signer: wallet.publicKey,
+    vaultAddress,
+  });
+
+// 3. Assemble and send — all three parts must be included in order
+const tx = new Transaction().add(...preInstructions, instruction, ...postInstructions);
+await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+See [Kamino Instructions](/vault-sdk/typescript/kamino-instructions/overview) for full usage examples of each operation.
+
+## Kamino Markets
+
+The SDK includes a pre-populated registry of all Kamino lending markets and their reserves.
+
+```typescript
+import { KaminoMarket, KAMINO_MARKETS, KAMINO_RESERVES } from "@exponent-labs/exponent-sdk";
+
+// Get the lending market public key
+const lendingMarket = KAMINO_MARKETS[KaminoMarket.MAIN];
+
+// Get a specific reserve's public key
+const solReserve = KAMINO_RESERVES[KaminoMarket.MAIN]["SOL"];
+```
+
+Available markets include: `MAIN`, `JLP`, `ALTCOINS`, `ETHENA`, `JITO`, `BITCOIN`, `JUPITER`, `EXPONENT_PT_SOL`, and more.
+
+## Withdrawal Queue
+
+Withdrawals from the vault are not instant. The process is:
+
+1. **Queue** — depositor calls `queueWithdrawal(withdrawalId, lpAmount)`. LP tokens are moved to escrow. A `WithdrawalAccount` PDA is created.
+2. **Fill** — the vault manager calls `fillWithdrawal` to associate token account pairs with the withdrawal
+3. **Execute** — depositor calls `executeWithdrawal(withdrawalId, tokenAccountPairs)` to receive their tokens and burn the LP
+
+<Note>
+The `withdrawalId` is a user-chosen numeric identifier (e.g., a timestamp or incrementing counter) used to derive the `WithdrawalAccount` PDA.
+</Note>
+
+## AUM Calculation
+
+The vault tracks total AUM as:
+
+```
+AUM = aum_in_base + aum_in_base_in_positions
+```
+
+- `aum_in_base` — tokens currently sitting in vault escrows (not deployed)
+- `aum_in_base_in_positions` — tokens deployed into strategy positions, valued in base units
+
+Prices are read from the `ExponentPrices` global account, which aggregates oracle data.

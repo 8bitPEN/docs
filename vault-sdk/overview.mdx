@@ -1,0 +1,73 @@
+---
+title: Vault SDK Overview
+description: Architecture and key concepts of Exponent Strategy Vaults
+---
+
+The Exponent Vault SDK provides TypeScript tooling for interacting with **Strategy Vaults** — on-chain, policy-gated managed funds deployed on Solana.
+
+Strategy Vaults sit alongside Exponent's core [yield stripping infrastructure](/home/learn/architecture). While the core protocol decomposes yield-bearing assets into PT and YT, Strategy Vaults pool depositor capital and deploy it into approved yield strategies through policy-gated execution.
+
+<Note>
+**Currently available:** The vault SDK supports interactions with **Kamino Lending** only. Support for additional protocols — including Marginfi, Jito Restaking, Perena, and generic adapters — is planned and will be added in future releases.
+</Note>
+
+## What is a Strategy Vault?
+
+A Strategy Vault (`ExponentStrategyVault`) is a multi-asset pool that accepts deposits, issues LP tokens to depositors, and deploys capital into approved yield strategies through a permissioned execution layer.
+
+```
+Depositors → [LP Tokens] → Vault → [Policies] → Strategy Positions (Kamino, Marginfi, ...)
+```
+
+Each vault maintains:
+- **Token Entries** — a set of accepted tokens, each with its own escrow and price configuration
+- **Strategy Positions** — tracked allocations to external protocols
+- **Withdrawal Queue** — pending LP redemptions waiting to be filled and executed
+- **AUM** — total assets under management computed as base liquidity + position valuations
+
+## On-Chain Program
+
+| Network | Program ID |
+| ------- | ---------- |
+| Mainnet | `HycecAnELpjL1pMp435nEKWkcr7aNZ2QGQGXpzK1VEdV` |
+
+## LP Token Mechanics
+
+When a depositor calls `depositLiquidity`, they send tokens into the vault's escrow and receive LP tokens proportional to their share of the total AUM.
+
+```
+LP out = (token_amount_in × total_lp_supply) / total_aum
+```
+
+LP tokens are standard SPL tokens and can be transferred freely. On withdrawal, LP tokens are burned and the depositor receives their proportional share back.
+
+## Role-Based Access Control
+
+Vault governance is enforced through four roles:
+
+| Role | Permissions |
+| ---- | ----------- |
+| **Manager** | Full control — initialize vault, add/remove policies, update positions, manage roles |
+| **Curator** | Add and configure token entries |
+| **Allocator** | Execute strategy interactions within approved policies |
+| **Sentinel** | Pause or freeze the vault in emergencies |
+
+## Policy-Gated Execution
+
+All strategy interactions (deploying capital into Kamino, Marginfi, etc.) are executed as **Squads sync transactions** wrapped inside a vault policy. A policy defines:
+
+- Which program can be called (`programId`)
+- Which instruction can be executed (via discriminator `DataConstraint`)
+- Which accounts must be present (via `AccountConstraint`)
+- Optional spending limits per period
+
+Without a valid matching policy, strategy execution is rejected on-chain.
+
+## Getting Started
+
+<CardGroup cols={2}>
+  <Card title="SDK Quickstart" href="/vault-sdk/sdk-quickstart" />
+  <Card title="Core Concepts" href="/vault-sdk/concepts" />
+  <Card title="Kamino Instructions" href="/vault-sdk/typescript/kamino-instructions/overview" />
+  <Card title="Policy Builders" href="/vault-sdk/typescript/policy-builders/overview" />
+</CardGroup>

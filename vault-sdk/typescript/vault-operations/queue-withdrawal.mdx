@@ -1,0 +1,81 @@
+---
+title: Queue Withdrawal
+description: Lock LP tokens and queue a withdrawal request from the vault
+---
+
+The `ixQueueWithdrawal` method builds a transaction instruction that moves LP tokens into escrow and creates a `WithdrawalAccount` PDA — the first step in the two-phase withdrawal process.
+
+## Usage
+
+```typescript
+import { ExponentVault } from "@exponent-labs/exponent-sdk";
+import { Connection, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
+import { BN } from "@coral-xyz/anchor";
+
+const connection = new Connection("https://api.mainnet-beta.solana.com");
+const vault = await ExponentVault.load({ connection, address: vaultAddress });
+
+// Use a unique ID per withdrawal — a timestamp or incrementing counter works well
+const withdrawalId = new BN(Date.now());
+
+const ix = vault.ixQueueWithdrawal({
+  // Your wallet public key
+  depositor: wallet.publicKey,
+  // Unique ID used to derive the WithdrawalAccount PDA
+  withdrawalId,
+  // Amount of LP tokens to redeem
+  lpAmount: new BN(500_000_000),
+});
+
+const tx = new Transaction().add(ix);
+await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+## Required Parameters
+
+| Parameter | Type | Description |
+| --------- | ---- | ----------- |
+| `depositor` | `PublicKey` | The depositor's wallet public key |
+| `withdrawalId` | `BN \| bigint \| number` | Unique numeric ID for this withdrawal. Used to derive the `WithdrawalAccount` PDA |
+| `lpAmount` | `BN \| bigint \| number` | Amount of LP tokens to lock for withdrawal |
+
+## Optional Parameters
+
+| Parameter | Type | Description |
+| --------- | ---- | ----------- |
+| `tokenLpSrc` | `PublicKey` | Source LP token account. Defaults to the depositor's ATA for the LP mint |
+| `tokenLpEscrow` | `PublicKey` | LP token escrow PDA. Defaults to the vault's LP escrow |
+| `tokenProgram` | `PublicKey` | Token program. Defaults to `TOKEN_PROGRAM_ID` |
+| `systemProgram` | `PublicKey` | System program. Defaults to `SystemProgram.programId` |
+
+## Returns
+
+Returns a `TransactionInstruction` that creates a `WithdrawalAccount` and moves LP tokens to escrow.
+
+## WithdrawalAccount PDA
+
+The `WithdrawalAccount` PDA is derived as:
+
+```
+seeds = ["withdrawal", vault, depositor, withdrawal_id_as_le_bytes]
+```
+
+You can derive it manually using:
+
+```typescript
+import { ExponentVaultsPDA } from "@exponent-labs/exponent-vaults-pda";
+
+const withdrawalPda = ExponentVaultsPDA.withdrawal({
+  vault: vaultAddress,
+  owner: wallet.publicKey,
+  withdrawalId,
+});
+```
+
+## Next Step
+
+After queuing, the vault manager calls `fillWithdrawal` to associate the underlying token accounts with your request. Once filled, call [`executeWithdrawal`](/vault-sdk/typescript/vault-operations/execute-withdrawal).
+
+<Warning>
+Store your `withdrawalId` — you need it to derive the `WithdrawalAccount` PDA when calling `executeWithdrawal`.
+</Warning>

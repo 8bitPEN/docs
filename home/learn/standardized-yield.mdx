@@ -44,6 +44,10 @@ Depositing 1,000 USDC at a rate of 1.05 yields 952.38 SY. As yield accrues and t
 Most users never interact with SY programs directly. The SDK's `ixStripFromBase` and `ixMergeToBase` methods handle wrapping and unwrapping automatically as part of stripping and merging.
 </Tip>
 
+<Note>
+Strategy Vaults use the same protocol integrations (Kamino, Marginfi, Jito Restaking, Perena, Generic) through their `InterfaceType` enum. See [Token Entry](/vault-sdk/account-references/token-entry) for the vault-side mapping.
+</Note>
+
 ## Next Steps
 
 <CardGroup cols={2}>

@@ -1,0 +1,233 @@
+---
+title: Policy Builders
+description: Construct on-chain policies that govern vault strategy execution
+---
+
+Policy builders are helper functions that construct `PolicyConfig` objects for common strategy execution scenarios. A policy must exist on-chain before any strategy instruction can be executed by the vault.
+
+## What is a Policy?
+
+A `programInteraction` policy defines exactly which instructions the vault's smart account is permitted to execute. It is enforced on-chain by the Squads program when `executeTransactionSync` is called.
+
+A policy consists of:
+- **`instructionsConstraints`** — a list of `InstructionConstraint` objects, each specifying:
+  - `programId` — which Solana program is allowed
+  - `dataConstraints` — which instruction discriminators match (first 8 bytes of instruction data)
+  - `accountConstraints` — which specific public keys must be present
+- **`threshold`** — number of signers required
+- **`timeLock`** — delay in seconds between approval and execution
+
+## Adding a Policy to a Vault
+
+Policies are added by the vault **manager** role:
+
+```typescript
+import {
+  ExponentVault,
+  createKaminoDepositPolicy,
+  KAMINO_MARKETS,
+  KAMINO_RESERVES,
+  KaminoMarket,
+} from "@exponent-labs/exponent-sdk";
+import { Connection, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
+
+const connection = new Connection("https://api.mainnet-beta.solana.com");
+const vault = await ExponentVault.load({ connection, address: vaultAddress });
+
+const solReserve = KAMINO_RESERVES[KaminoMarket.MAIN]["SOL"];
+const mainMarket = KAMINO_MARKETS[KaminoMarket.MAIN];
+
+// Build the policy config
+const policyConfig = createKaminoDepositPolicy({
+  allowedReserves: [solReserve],
+  allowedLendingMarkets: [mainMarket],
+});
+
+// Add it to the vault
+const ix = await vault.ixAddPolicy(policyConfig);
+const tx = new Transaction().add(ix);
+await sendAndConfirmTransaction(connection, tx, [managerWallet]);
+```
+
+---
+
+## Deposit Policy
+
+`createKaminoDepositPolicy` builds a policy that permits calling `depositReserveLiquidityAndObligationCollateral` on the Kamino Lending program.
+
+```typescript
+import { createKaminoDepositPolicy } from "@exponent-labs/exponent-sdk";
+
+const policyConfig = createKaminoDepositPolicy({
+  allowedReserves: [solReserve],
+  allowedLendingMarkets: [mainMarket],
+  threshold: 1,
+  timeLock: 0,
+});
+```
+
+### Parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| `allowedReserves` | `PublicKey[]` | Reserve public keys that can receive deposits |
+| `allowedLendingMarkets` | `PublicKey[]` | Optional. Lending market public keys |
+| `spendingLimits` | `SpendingLimit[]` | Optional. Per-period token spend caps |
+| `threshold` | `number` | Optional. Number of signers required. Defaults to `1` |
+| `timeLock` | `number` | Optional. Execution delay in seconds. Defaults to `0` |
+
+---
+
+## Withdraw Policy
+
+`createKaminoWithdrawPolicy` builds a policy that permits calling `withdrawObligationCollateralAndRedeemReserveCollateral` on the Kamino Lending program.
+
+```typescript
+import { createKaminoWithdrawPolicy } from "@exponent-labs/exponent-sdk";
+
+const policyConfig = createKaminoWithdrawPolicy({
+  allowedReserves: [solReserve],
+  allowedLendingMarkets: [mainMarket],
+  threshold: 1,
+  timeLock: 0,
+});
+```
+
+### Parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| `allowedReserves` | `PublicKey[]` | Reserve public keys allowed as withdrawal sources |
+| `allowedLendingMarkets` | `PublicKey[]` | Optional. Lending market public keys |
+| `spendingLimits` | `SpendingLimit[]` | Optional. Per-period token spend caps |
+| `threshold` | `number` | Optional. Number of signers required. Defaults to `1` |
+| `timeLock` | `number` | Optional. Execution delay in seconds. Defaults to `0` |
+
+---
+
+## Borrow Policy
+
+`createKaminoBorrowPolicy` builds a policy that permits calling `borrowObligationLiquidity` on the Kamino Lending program.
+
+```typescript
+import { createKaminoBorrowPolicy } from "@exponent-labs/exponent-sdk";
+
+const policyConfig = createKaminoBorrowPolicy({
+  allowedReserves: [solReserve],
+  allowedLendingMarkets: [mainMarket],
+  threshold: 1,
+  timeLock: 0,
+});
+```
+
+### Parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| `allowedReserves` | `PublicKey[]` | Reserve public keys allowed for borrowing |
+| `allowedLendingMarkets` | `PublicKey[]` | Optional. Lending market public keys |
+| `spendingLimits` | `SpendingLimit[]` | Optional. Per-period token spend caps |
+| `threshold` | `number` | Optional. Number of signers required. Defaults to `1` |
+| `timeLock` | `number` | Optional. Execution delay in seconds. Defaults to `0` |
+
+---
+
+## Repay Policy
+
+`createKaminoRepayPolicy` builds a policy that permits calling `repayObligationLiquidity` on the Kamino Lending program.
+
+```typescript
+import { createKaminoRepayPolicy } from "@exponent-labs/exponent-sdk";
+
+const policyConfig = createKaminoRepayPolicy({
+  allowedReserves: [solReserve],
+  allowedLendingMarkets: [mainMarket],
+  threshold: 1,
+  timeLock: 0,
+});
+```
+
+### Parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| `allowedReserves` | `PublicKey[]` | Reserve public keys allowed for repayment |
+| `allowedLendingMarkets` | `PublicKey[]` | Optional. Lending market public keys |
+| `spendingLimits` | `SpendingLimit[]` | Optional. Per-period token spend caps |
+| `threshold` | `number` | Optional. Number of signers required. Defaults to `1` |
+| `timeLock` | `number` | Optional. Execution delay in seconds. Defaults to `0` |
+
+
+---
+
+## Full Access Policy
+
+`createKaminoFullAccessPolicy` creates a single policy covering multiple Kamino actions. This is useful when a strategy requires deposit, withdraw, borrow, and repay on the same reserves.
+
+```typescript
+import {
+  createKaminoFullAccessPolicy,
+  KAMINO_MARKETS,
+  KAMINO_RESERVES,
+  KaminoMarket,
+} from "@exponent-labs/exponent-sdk";
+
+const solReserve = KAMINO_RESERVES[KaminoMarket.MAIN]["SOL"];
+const usdcReserve = KAMINO_RESERVES[KaminoMarket.MAIN]["USDC"];
+const mainMarket = KAMINO_MARKETS[KaminoMarket.MAIN];
+
+const policyConfig = createKaminoFullAccessPolicy({
+  allowedReserves: [solReserve, usdcReserve],
+  allowedActions: ["deposit", "withdraw", "borrow", "repay"],
+  allowedLendingMarkets: [mainMarket],
+});
+```
+
+### Parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| `allowedReserves` | `PublicKey[]` | Reserve public keys allowed for all specified actions |
+| `allowedActions` | `("deposit" \| "withdraw" \| "borrow" \| "repay")[]` | Which Kamino actions to permit |
+| `allowedLendingMarkets` | `PublicKey[]` | Optional. Lending market public keys |
+| `spendingLimits` | `SpendingLimit[]` | Optional. Per-period token spend caps |
+| `threshold` | `number` | Optional. Number of signers required. Defaults to `1` |
+| `timeLock` | `number` | Optional. Execution delay in seconds. Defaults to `0` |
+
+<Tip>
+Using a combined policy simplifies vault administration when a strategy requires multiple operations on the same reserves. The allocator passes the same `policyPda` to all Kamino calls.
+</Tip>
+
+---
+
+## Spending Limits
+
+Any policy builder accepts a `spendingLimits` array to cap token outflows per period:
+
+```typescript
+import { BN } from "@coral-xyz/anchor";
+import { PublicKey } from "@solana/web3.js";
+
+const USDC_MINT = new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
+
+const policyConfig = createKaminoDepositPolicy({
+  allowedReserves: [usdcReserve],
+  spendingLimits: [
+    {
+      mint: USDC_MINT,
+      timeConstraints: {
+        start: new BN(Math.floor(Date.now() / 1000)),
+        expiration: null,
+        period: "Daily",
+      },
+      quantityConstraints: {
+        maxPerPeriod: new BN(1_000_000 * 1_000_000), // 1M USDC per day
+      },
+    },
+  ],
+});
+```
+
+### Allowed Periods
+
+`"OneTime"` | `"Hourly"` | `"Daily"` | `"Weekly"` | `"Monthly"` | `"Quarterly"` | `"Yearly"`

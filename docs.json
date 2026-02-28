@@ -257,6 +257,59 @@
             ]
           }
         ]
+      },
+      {
+        "tab": "Vault SDK",
+        "groups": [
+          {
+            "group": "Introduction",
+            "pages": [
+              "vault-sdk/overview",
+              "vault-sdk/concepts",
+              "vault-sdk/sdk-quickstart",
+              "vault-sdk/support"
+            ]
+          },
+          {
+            "group": "TypeScript Vault Operations",
+            "pages": [
+              "vault-sdk/typescript/vault-operations/overview",
+              "vault-sdk/typescript/vault-operations/deposit-liquidity",
+              "vault-sdk/typescript/vault-operations/queue-withdrawal",
+              "vault-sdk/typescript/vault-operations/execute-withdrawal"
+            ]
+          },
+          {
+            "group": "TypeScript Kamino Instructions",
+            "pages": [
+              "vault-sdk/typescript/kamino-instructions/overview"
+            ]
+          },
+          {
+            "group": "Policy Builders",
+            "pages": [
+              "vault-sdk/typescript/policy-builders/overview"
+            ]
+          },
+          {
+            "group": "Account References",
+            "pages": [
+              "vault-sdk/account-references/exponent-vault",
+              "vault-sdk/account-references/token-entry"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Vault Managers",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "vault-managers/overview"
+            ]
+          }
+        ]
       }
     ],
     "global": {

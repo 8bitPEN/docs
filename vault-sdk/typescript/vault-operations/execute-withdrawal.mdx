@@ -1,0 +1,97 @@
+---
+title: Execute Withdrawal
+description: Execute a filled withdrawal request and receive underlying tokens
+---
+
+The `ixExecuteWithdrawal` method builds a transaction instruction that burns the queued LP tokens and transfers the underlying tokens to the depositor. This is the second and final step of the withdrawal process.
+
+## Usage
+
+```typescript
+import { ExponentVault } from "@exponent-labs/exponent-sdk";
+import { Connection, PublicKey, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
+import { BN } from "@coral-xyz/anchor";
+import { getAssociatedTokenAddressSync } from "@solana/spl-token";
+import { ExponentVaultsPDA } from "@exponent-labs/exponent-vaults-pda";
+
+const connection = new Connection("https://api.mainnet-beta.solana.com");
+const vault = await ExponentVault.load({ connection, address: vaultAddress });
+
+// Build token account pairs — one per token entry in the vault
+// Each pair maps the vault's escrow to the depositor's destination account
+const tokenAccountPairs = vault.tokenEntries.map((entry) => ({
+  // Source: the vault's escrow for this token
+  tokenSrc: ExponentVaultsPDA.tokenEntryEscrow({
+    vault: vaultAddress,
+    mint: entry.mint,
+  }),
+  // Destination: your wallet's ATA for this token
+  tokenDst: getAssociatedTokenAddressSync(entry.mint, wallet.publicKey),
+}));
+
+// Use the same withdrawalId you passed to queueWithdrawal
+const withdrawalId = new BN(/* your saved withdrawal ID */);
+
+const ix = vault.ixExecuteWithdrawal({
+  owner: wallet.publicKey,
+  withdrawalId,
+  tokenAccountPairs,
+});
+
+const tx = new Transaction().add(ix);
+await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+## Required Parameters
+
+| Parameter | Type | Description |
+| --------- | ---- | ----------- |
+| `owner` | `PublicKey` | The depositor's wallet public key |
+| `withdrawalId` | `BN \| bigint \| number` | The same ID used when calling `queueWithdrawal` |
+| `tokenAccountPairs` | `TokenAccountPair[]` | Array of `{ tokenSrc, tokenDst }` pairs — one per vault token entry |
+
+## TokenAccountPair
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `tokenSrc` | `PublicKey` | The vault's token entry escrow (source) |
+| `tokenDst` | `PublicKey` | The depositor's token account (destination) |
+
+## Optional Parameters
+
+| Parameter | Type | Description |
+| --------- | ---- | ----------- |
+| `tokenProgram` | `PublicKey` | Token program. Defaults to `TOKEN_PROGRAM_ID` |
+| `tokenLpEscrow` | `PublicKey` | LP token escrow. Defaults to the vault's LP escrow PDA |
+| `mintLp` | `PublicKey` | LP mint. Defaults to the vault's LP mint PDA |
+
+## Returns
+
+Returns a `TransactionInstruction` that burns LP tokens from escrow and transfers underlying tokens to the depositor.
+
+<Warning>
+`executeWithdrawal` will fail if the vault manager has not yet called `fillWithdrawal` for your withdrawal request. Check that the `WithdrawalAccount` has been filled before calling this instruction.
+</Warning>
+
+## Checking Withdrawal Status
+
+To check if a withdrawal has been filled, fetch the `WithdrawalAccount`:
+
+```typescript
+import { ExponentVaultsFetcher } from "@exponent-labs/exponent-vaults-fetcher";
+import { ExponentVaultsPDA } from "@exponent-labs/exponent-vaults-pda";
+
+const withdrawalPda = ExponentVaultsPDA.withdrawal({
+  vault: vaultAddress,
+  owner: wallet.publicKey,
+  withdrawalId,
+});
+
+const withdrawalAccount = await ExponentVaultsFetcher.fetchWithdrawal(
+  connection,
+  withdrawalPda,
+);
+
+// The withdrawal is ready to execute when fills are present
+console.log("fills:", withdrawalAccount?.fills);
+```

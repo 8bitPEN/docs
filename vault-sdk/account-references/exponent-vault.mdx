@@ -1,0 +1,206 @@
+---
+title: ExponentStrategyVault
+description: On-chain account structure for Exponent Strategy Vaults
+---
+
+The `ExponentStrategyVault` account is the central state account for each vault. It tracks depositor balances, strategy positions, AUM, roles, and vault configuration.
+
+**Program ID:** `HycecAnELpjL1pMp435nEKWkcr7aNZ2QGQGXpzK1VEdV`
+
+**PDA Seeds:** `["vault", seed_id]`
+
+## ExponentStrategyVault
+
+```rust
+#[account]
+pub struct ExponentStrategyVault {
+    /// Address to address lookup table (ALT)
+    pub address_lookup_table: Pubkey,
+
+    /// Squads settings account (policies, signers, configuration)
+    /// Derived as: ["smart_account", "settings", seed]
+    pub squads_settings: Pubkey,
+
+    /// Squads smart account (holds funds, signs CPIs as vault)
+    /// Derived as: ["smart_account", settings, "smart_account", account_index]
+    pub squads_vault: Pubkey,
+
+    /// Token entries defining accepted deposit tokens
+    pub token_entries: Vec<TokenEntry>,
+
+    /// Underlying mint used to validate all price references
+    pub underlying_mint: Pubkey,
+
+    /// SPL mint for this vault's LP tokens
+    pub mint_lp: Pubkey,
+
+    /// LP token escrow (holds staked LP tokens)
+    pub token_lp_escrow: Pubkey,
+
+    /// Fee to the treasury in LP basis points
+    pub fee_treasury_lp_bps: u16,
+
+    /// The vault PDA's own address (for self-reference in CPIs)
+    pub self_address: Pubkey,
+
+    /// PDA bump seed
+    pub signer_bump: [u8; 1],
+
+    /// Bitfield of vault status flags
+    pub status_flags: u8,
+
+    /// AUM and LP financial state
+    pub financials: VaultFinancials,
+
+    /// Strategy positions for AUM calculation
+    pub strategy_positions: Vec<StrategyPosition>,
+
+    /// Maximum LP token supply allowed
+    pub max_lp_supply: u64,
+
+    /// LP tokens currently sitting in escrow (queued withdrawals)
+    pub lp_escrow_amount: u64,
+
+    /// 8-byte seed used to derive the vault PDA
+    pub seed_id: [u8; 8],
+
+    /// How the vault manages funds (Orderbook or Generic adapter)
+    pub vault_type: VaultType,
+
+    /// Role membership lists (manager, curator, allocator, sentinel)
+    pub roles: VaultRoles,
+
+    /// Governance voting configuration for proposal rejection
+    pub proposal_vote_config: ProposalVoteConfig,
+
+    /// Reserve configuration (share BPS, lock time)
+    pub reserves_config: VaultConfig,
+}
+```
+
+## VaultFinancials
+
+```rust
+pub struct VaultFinancials {
+    /// Expiration timestamp (copied from associated PT vault, if any)
+    pub expiration_ts: u64,
+
+    /// Total LP token supply
+    pub lp_balance: u64,
+
+    /// Tokens sitting in vault escrows (not deployed)
+    pub aum_in_base: u64,
+
+    /// Tokens deployed in strategy positions (Kamino, etc.)
+    pub aum_in_base_in_positions: u64,
+
+    /// LP tokens in reserve escrow
+    pub lp_in_reserves: u64,
+}
+```
+
+Total AUM is computed as:
+```
+total_aum = aum_in_base + aum_in_base_in_positions
+```
+
+## VaultRoles
+
+```rust
+pub struct VaultRoles {
+    /// Full control: manage policies, roles, vault settings
+    pub manager: Vec<Pubkey>,
+
+    /// Configure token entries and validation rules via policies
+    pub curator: Vec<Pubkey>,
+
+    /// Execute strategy interactions (Kamino deposits/withdrawals)
+    pub allocator: Vec<Pubkey>,
+
+    /// Emergency control: pause/freeze the vault
+    pub sentinel: Vec<Pubkey>,
+}
+```
+
+| Role | Permissions |
+| ---- | ----------- |
+| `manager` | Add/remove policies, add token entries, initialize vault, manage all roles |
+| `curator` | Manage token entries and policy configurations |
+| `allocator` | Call strategy interactions (Kamino) via `createVaultSyncTransaction` |
+| `sentinel` | Set/clear vault status flags (block withdrawals, block manager invoke) |
+
+## Status Flags
+
+The `status_flags` field is a bitfield. Each bit blocks a specific class of vault operation:
+
+```rust
+/// Block queue_withdrawal
+pub const FLAG_WITHDRAWALS_BLOCKED: u8 = 1 << 0;  // 0x01
+
+/// Block strategy execution (manager invoke with policy)
+pub const FLAG_MANAGER_INVOKE_BLOCKED: u8 = 1 << 1;  // 0x02
+
+/// Block user force deallocate
+pub const FLAG_USER_INVOKE_BLOCKED: u8 = 1 << 2;  // 0x04
+```
+
+The sentinel role can set or clear these flags at any time.
+
+## VaultType
+
+```rust
+pub enum VaultType {
+    /// Uses the Exponent orderbook for PT/YT trading positions
+    Orderbook,
+    /// Uses adapter-based protocols (Kamino, Marginfi, etc.)
+    Generic,
+}
+```
+
+## StrategyPosition
+
+Strategy positions are tracked for AUM calculation. Each variant represents a different deployment type:
+
+```rust
+pub enum StrategyPosition {
+    /// Position in an Exponent orderbook (PT/YT offers)
+    Orderbook(OrderbookEntry),
+    /// Position in one or more token accounts (generic)
+    TokenAccount(TokenAccountEntry),
+    /// Position in a lending obligation (Kamino, etc.)
+    Obligation(ObligationType),
+}
+```
+
+For Kamino integrations, positions are stored as `StrategyPosition::Obligation(ObligationType::KaminoObligation(...))`.
+
+## ProposalVoteConfig
+
+Governs the rejection-based voting system for vault policies. Proposals are approved by default after the timelock expires unless enough LP holders vote to reject.
+
+| Field | Default | Description |
+| ----- | ------- | ----------- |
+| `min_voting_period_seconds` | 3,600 (1h) | Minimum time proposals must be open for voting |
+| `max_voting_period_seconds` | 604,800 (7d) | Maximum voting duration |
+| `default_voting_period_seconds` | 172,800 (48h) | Default voting window |
+| `default_timelock_seconds` | 86,400 (24h) | Delay after voting ends before execution |
+| `rejection_threshold_bps` | 330,000 (33%) | Fraction of LP supply needed to reject a proposal |
+| `voting_enabled` | `true` | Whether the voting mechanism is active |
+
+## PDA Derivation
+
+```typescript
+import { ExponentVaultsPDA } from "@exponent-labs/exponent-vaults-pda";
+
+// Vault PDA
+const vault = ExponentVaultsPDA.vault({ seedId });
+
+// LP mint PDA
+const mintLp = ExponentVaultsPDA.mintLp({ vault });
+
+// LP token escrow PDA
+const tokenLpEscrow = ExponentVaultsPDA.tokenLpEscrow({ vault });
+
+// Token entry escrow PDA (one per accepted token)
+const tokenEscrow = ExponentVaultsPDA.tokenEntryEscrow({ vault, mint });
+```

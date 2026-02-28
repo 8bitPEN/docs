@@ -1,6 +1,6 @@
 ---
 title: Programs
-description: Exponent on-chain program addresses on Solana
+description: Exponent on-chain program addresses and vault ecosystem references on Solana
 ---
 
 # Programs
@@ -26,3 +26,57 @@ Each SY program handles wrapping/unwrapping for a specific yield source.
 | Jito Restaking SY | `jitoRestaking` | `XPJitopeUEhMZVF72CvswnwrS2U2akQvk5s26aEfWv2` |
 | Perena SY | `perena` | `XPerenaJPyvnjseLCn7rgzxFEum6zX1k89C13SPTyGZ` |
 | Generic SY | `generic` | `XP1BRLn8eCYSygrd8er5P4GKdzqKbC3DLoSsS5UYVZy` |
+
+## Strategy Vault Program
+
+The Exponent Vaults program manages vault state, deposits, withdrawals, and policy execution for [Strategy Vaults](/vault-sdk/overview).
+
+| Program | Address |
+|---------|---------|
+| Exponent Vaults | `HycecAnELpjL1pMp435nEKWkcr7aNZ2QGQGXpzK1VEdV` |
+
+## Integrated Protocols (Vaults)
+
+External protocols that Strategy Vaults interact with through policy-gated execution.
+
+| Protocol | Program ID |
+|----------|------------|
+| Kamino Lending | `KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD` |
+| Kamino Farms | `FarmsPZpWu9i7Kky8tPN37rs2TpmMrAZrC7S7vJa91Hr` |
+| Squads (policy execution) | `SMRTzfY6DfH5ik3TKiyLFfXexV8uSG3d2UksSCYdunG` |
+
+## Vault SDK Packages
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `@exponent-labs/exponent-sdk` | `0.1.8` | Main SDK — vaults, vault interactions, policy builders |
+| `@exponent-labs/exponent-vaults-idl` | `0.0.1` | Anchor IDL for the vault program |
+| `@exponent-labs/exponent-vaults-pda` | `0.0.1` | PDA derivation helpers |
+| `@exponent-labs/exponent-vaults-fetcher` | `0.0.1` | Fetch and deserialize vault on-chain state |
+
+## Vault PDA Seeds
+
+All vault PDAs are derived deterministically from their seeds.
+
+| Account | Seeds |
+|---------|-------|
+| Vault | `["vault", seed_id]` |
+| LP Mint | `["mint_lp", vault]` |
+| LP Token Escrow | `["token_lp_escrow", vault]` |
+| Token Entry Escrow | `["token_entry_escrow", vault, mint]` |
+| Withdrawal | `["withdrawal", vault, owner, withdrawal_id]` |
+| Exponent Prices | `["exponent_prices"]` |
+
+## Kamino Instruction Discriminators
+
+These 8-byte discriminators identify Kamino Lending instructions and are used in vault policy `DataConstraint` definitions.
+
+| Instruction | Discriminator |
+|-------------|---------------|
+| `depositReserveLiquidityAndObligationCollateral` | `[89, 54, 81, 50, 113, 178, 58, 57]` |
+| `withdrawObligationCollateralAndRedeemReserveCollateral` | `[55, 238, 161, 37, 174, 189, 224, 137]` |
+| `borrowObligationLiquidity` | `[121, 2, 81, 166, 149, 195, 141, 174]` |
+| `repayObligationLiquidity` | `[145, 178, 29, 31, 28, 168, 61, 12]` |
+| `initObligation` | `[251, 10, 231, 76, 27, 11, 159, 96]` |
+| `refreshReserve` | `[2, 218, 138, 235, 79, 201, 25, 102]` |
+| `refreshObligation` | `[218, 111, 56, 249, 131, 169, 13, 171]` |

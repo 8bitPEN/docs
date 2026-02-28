@@ -1,0 +1,338 @@
+---
+title: Kamino Instructions
+description: Deploy vault capital into Kamino Lending — deposit, withdraw, borrow, and repay through policy-gated execution
+---
+
+The Kamino instructions module enables vault managers and allocators to interact with [Kamino Lending](https://kamino.finance) reserves. All interactions are executed as Squads sync transactions validated against on-chain policies.
+
+<Note>
+Kamino Lending is currently the **only** yield protocol available through the vault SDK. Support for additional protocols is planned for future releases.
+</Note>
+
+## Transaction Structure
+
+Every Kamino interaction goes through `createVaultSyncTransaction`, which returns three parts:
+
+```typescript
+const { preInstructions, instruction, postInstructions } =
+  await createVaultSyncTransaction({
+    instructions,   // Array of VaultInstruction descriptors
+    owner,          // Vault PDA (the Squads smart account)
+    connection,
+    policyPda,      // Policy authorizing this execution
+    vaultPda,       // Squads vault PDA
+    signer,         // The allocator or manager wallet
+    vaultAddress,   // ExponentStrategyVault PDA (auto-resolves hook accounts)
+  });
+
+// Send all three parts in order
+const tx = new Transaction().add(...preInstructions, instruction, ...postInstructions);
+await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+| Part | What it contains | Why it's separate |
+|---|---|---|
+| `preInstructions` | Refresh instructions (reserve, obligation, farms, Scope oracle) | KLend's `check_refresh` requires these as top-level instructions |
+| `instruction` | Squads sync transaction wrapping all vault-signed instructions | Executes with the vault's smart account as signer |
+| `postInstructions` | Post-operation farm refresh instructions | KLend requires farm refreshes both before and after operations |
+
+<Warning>
+Each transaction can contain **one lending operation** (deposit, withdraw, borrow, or repay). You cannot chain multiple lending operations — for example, deposit + borrow — in a single `createVaultSyncTransaction` call.
+
+This is a KLend on-chain constraint: `check_refresh` validates that reserve and obligation refresh instructions appear at fixed positions relative to the sync transaction. Multiple lending operations would produce conflicting refresh layouts, causing the transaction to fail.
+
+Setup operations (`initUserMetadata`, `initObligation`) do not require refreshes and **can** be batched alongside one lending operation.
+</Warning>
+
+## Setup: One-Time Prerequisites
+
+Before any deposit, withdraw, borrow, or repay, two accounts must exist for the vault owner on Kamino Lending.
+
+### Init User Metadata
+
+Creates a `UserMetadata` PDA on Kamino Lending. Required **once per wallet** — it is global across all markets.
+
+```typescript
+kaminoAction.initUserMetadata(KaminoMarket.MAIN)
+```
+
+### Init Obligation
+
+Creates an `Obligation` PDA for a specific lending market. Required **once per market** (e.g., separate obligations for MAIN, JLP, etc.).
+
+```typescript
+kaminoAction.initObligation(KaminoMarket.MAIN)
+```
+
+Both are **idempotent** — they check if the account exists before including the instruction. It is safe to batch them with other operations.
+
+<Warning>
+User metadata must be created before the obligation. When batching both, list `initUserMetadata` before `initObligation`.
+</Warning>
+
+---
+
+## Deposit
+
+`kaminoAction.deposit` deposits tokens from the vault into a Kamino lending reserve, receiving collateral tokens in return.
+
+```typescript
+import {
+  kaminoAction,
+  createVaultSyncTransaction,
+  KaminoMarket,
+} from "@exponent-labs/exponent-sdk";
+import { BN } from "@coral-xyz/anchor";
+
+const { preInstructions, instruction, postInstructions } =
+  await createVaultSyncTransaction({
+    instructions: [
+      kaminoAction.deposit(KaminoMarket.MAIN, "USDC", new BN(100_000_000)),
+    ],
+    owner: vaultPda,
+    connection,
+    policyPda,
+    vaultPda,
+    signer: wallet.publicKey,
+    vaultAddress,
+  });
+
+const tx = new Transaction().add(...preInstructions, instruction, ...postInstructions);
+await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+### Parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| `market` | `KaminoMarket` | The Kamino lending market (e.g., `KaminoMarket.MAIN`) |
+| `asset` | `string` | Reserve asset key from `KAMINO_RESERVES[market]` (e.g., `"SOL"`, `"USDC"`) |
+| `amount` | `BN` | Amount to deposit in the token's native units |
+
+A matching policy must exist before executing. See [Policy Builders](/vault-sdk/typescript/policy-builders/overview#deposit-policy).
+
+---
+
+## Withdraw
+
+`kaminoAction.withdraw` redeems collateral from a Kamino lending reserve back to the vault.
+
+```typescript
+const { preInstructions, instruction, postInstructions } =
+  await createVaultSyncTransaction({
+    instructions: [
+      kaminoAction.withdraw(KaminoMarket.MAIN, "USDC", new BN(50_000_000)),
+    ],
+    owner: vaultPda,
+    connection,
+    policyPda,
+    vaultPda,
+    signer: wallet.publicKey,
+    vaultAddress,
+  });
+
+const tx = new Transaction().add(...preInstructions, instruction, ...postInstructions);
+await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+### Parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| `market` | `KaminoMarket` | The Kamino lending market |
+| `asset` | `string` | Reserve asset key from `KAMINO_RESERVES[market]` |
+| `amount` | `BN` | Amount to withdraw in the token's native units |
+
+<Tip>
+The SDK automatically converts the liquidity amount to collateral amount using the reserve's exchange rate. You specify the amount in base token units (e.g., USDC), not cToken units.
+</Tip>
+
+A matching policy must exist before executing. See [Policy Builders](/vault-sdk/typescript/policy-builders/overview#withdraw-policy).
+
+---
+
+## Borrow
+
+`kaminoAction.borrow` borrows tokens from a Kamino lending reserve against the vault's deposited collateral.
+
+```typescript
+const { preInstructions, instruction, postInstructions } =
+  await createVaultSyncTransaction({
+    instructions: [
+      kaminoAction.borrow(KaminoMarket.MAIN, "SOL", new BN(1_000_000_000)),
+    ],
+    owner: vaultPda,
+    connection,
+    policyPda,
+    vaultPda,
+    signer: wallet.publicKey,
+    vaultAddress,
+  });
+
+const tx = new Transaction().add(...preInstructions, instruction, ...postInstructions);
+await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+### Parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| `market` | `KaminoMarket` | The Kamino lending market |
+| `asset` | `string` | Reserve asset key to borrow from |
+| `amount` | `BN` | Amount to borrow in the token's native units |
+
+A matching policy must exist before executing. See [Policy Builders](/vault-sdk/typescript/policy-builders/overview#borrow-policy).
+
+---
+
+## Repay
+
+`kaminoAction.repay` repays borrowed tokens to a Kamino lending reserve, reducing the vault's debt position.
+
+```typescript
+const { preInstructions, instruction, postInstructions } =
+  await createVaultSyncTransaction({
+    instructions: [
+      kaminoAction.repay(KaminoMarket.MAIN, "SOL", new BN(1_000_000_000)),
+    ],
+    owner: vaultPda,
+    connection,
+    policyPda,
+    vaultPda,
+    signer: wallet.publicKey,
+    vaultAddress,
+  });
+
+const tx = new Transaction().add(...preInstructions, instruction, ...postInstructions);
+await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+### Parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| `market` | `KaminoMarket` | The Kamino lending market |
+| `asset` | `string` | Reserve asset key to repay |
+| `amount` | `BN` | Amount to repay in the token's native units |
+
+A matching policy must exist before executing. See [Policy Builders](/vault-sdk/typescript/policy-builders/overview#repay-policy).
+
+---
+
+## Full Flow Example
+
+This example demonstrates a complete leveraged yield strategy: deposit USDC as collateral into Kamino, borrow SOL against it, then later repay the SOL and withdraw the USDC.
+
+### Step 1: Setup + Deposit
+
+```typescript
+import {
+  ExponentVault,
+  kaminoAction,
+  createVaultSyncTransaction,
+  KaminoMarket,
+} from "@exponent-labs/exponent-sdk";
+import { Connection, PublicKey, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
+import { BN } from "@coral-xyz/anchor";
+
+const connection = new Connection("https://api.mainnet-beta.solana.com");
+const vault = await ExponentVault.load({ connection, address: vaultAddress });
+
+const vaultPda = vault.state.squadsVault;
+const policyPda = new PublicKey("..."); // Policy allowing deposit + borrow + repay + withdraw
+
+// Initialize Kamino accounts (idempotent) and deposit 1000 USDC
+const { preInstructions, instruction, postInstructions } =
+  await createVaultSyncTransaction({
+    instructions: [
+      kaminoAction.initUserMetadata(KaminoMarket.MAIN),
+      kaminoAction.initObligation(KaminoMarket.MAIN),
+      kaminoAction.deposit(KaminoMarket.MAIN, "USDC", new BN(1_000_000_000)), // 1000 USDC
+    ],
+    owner: vaultPda,
+    connection,
+    policyPda,
+    vaultPda,
+    signer: wallet.publicKey,
+    vaultAddress,
+  });
+
+const tx = new Transaction().add(...preInstructions, instruction, ...postInstructions);
+await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+### Step 2: Borrow SOL Against Collateral
+
+```typescript
+const { preInstructions, instruction, postInstructions } =
+  await createVaultSyncTransaction({
+    instructions: [
+      kaminoAction.borrow(KaminoMarket.MAIN, "SOL", new BN(5_000_000_000)), // 5 SOL
+    ],
+    owner: vaultPda,
+    connection,
+    policyPda,
+    vaultPda,
+    signer: wallet.publicKey,
+    vaultAddress,
+  });
+
+const tx = new Transaction().add(...preInstructions, instruction, ...postInstructions);
+await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+### Step 3: Repay the SOL Borrow
+
+```typescript
+const { preInstructions, instruction, postInstructions } =
+  await createVaultSyncTransaction({
+    instructions: [
+      kaminoAction.repay(KaminoMarket.MAIN, "SOL", new BN(5_000_000_000)), // 5 SOL
+    ],
+    owner: vaultPda,
+    connection,
+    policyPda,
+    vaultPda,
+    signer: wallet.publicKey,
+    vaultAddress,
+  });
+
+const tx = new Transaction().add(...preInstructions, instruction, ...postInstructions);
+await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+### Step 4: Withdraw USDC Collateral
+
+```typescript
+const { preInstructions, instruction, postInstructions } =
+  await createVaultSyncTransaction({
+    instructions: [
+      kaminoAction.withdraw(KaminoMarket.MAIN, "USDC", new BN(1_000_000_000)), // 1000 USDC
+    ],
+    owner: vaultPda,
+    connection,
+    policyPda,
+    vaultPda,
+    signer: wallet.publicKey,
+    vaultAddress,
+  });
+
+const tx = new Transaction().add(...preInstructions, instruction, ...postInstructions);
+await sendAndConfirmTransaction(connection, tx, [wallet]);
+```
+
+## Available Asset Keys
+
+Look up available assets per market:
+
+```typescript
+import { KAMINO_RESERVES, KaminoMarket } from "@exponent-labs/exponent-sdk";
+
+// List all assets in the MAIN market
+const assets = Object.keys(KAMINO_RESERVES[KaminoMarket.MAIN]);
+// → ["SOL", "USDC", "ETH", "JUP", ...]
+```
+
+## SOL Handling
+
+The SDK automatically handles SOL wrapping and unwrapping. When depositing or repaying SOL, it wraps native SOL to wSOL before the operation and unwraps any remaining wSOL afterward. When withdrawing or borrowing SOL, it unwraps the received wSOL back to native SOL.
